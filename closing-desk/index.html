@@ -1,0 +1,905 @@
+<title>Hub Closing Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Arimo:wght@400;700&display=swap">
+<style>
+/* Layout: sticky file bar, left module rail, working pane. Data entered once, every module reads the same order record. */
+:root{
+  --bg:#f2f4f7; --surface:#ffffff; --surface-2:#e9edf2; --line:#d3d9e1; --fg:#16202c; --muted:#5a6676;
+  --accent:#1c4d8c; --accent-soft:#e3ecf8; --accent-fg:#ffffff;
+  --ok:#17734a; --ok-bg:#e3f3ea; --warn:#8f5d00; --warn-bg:#fbf0d6; --bad:#b3261e; --bad-bg:#fce8e6;
+  --paper:#ffffff; --ink:#111111; --rule:#333333; --paper-soft:#f3f3f3;
+  --sans:'Public Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --form:'Arimo',Arial,Helvetica,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e131a; --surface:#151c26; --surface-2:#1c2531; --line:#2b3645; --fg:#e3e8ef; --muted:#97a3b4;
+  --accent:#86b4ff; --accent-soft:#1b2a42; --accent-fg:#0b1322;
+  --ok:#5fd19a; --ok-bg:#11301f; --warn:#f0b85a; --warn-bg:#33270f; --bad:#ff8a7e; --bad-bg:#3a1714; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e131a; --surface:#151c26; --surface-2:#1c2531; --line:#2b3645; --fg:#e3e8ef; --muted:#97a3b4;
+  --accent:#86b4ff; --accent-soft:#1b2a42; --accent-fg:#0b1322;
+  --ok:#5fd19a; --ok-bg:#11301f; --warn:#f0b85a; --warn-bg:#33270f; --bad:#ff8a7e; --bad-bg:#3a1714; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:14px/1.45 var(--sans)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:baseline;gap:8px}
+.brand b{font-weight:700;font-size:16px;letter-spacing:-.01em}
+.brand span{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+.filebar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:1;min-width:0}
+.filebar select{max-width:280px}
+.statusbox{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)} .pill.bad{background:var(--bad-bg);color:var(--bad)} .pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.neutral{background:var(--surface-2);color:var(--muted)}
+.shell{display:grid;grid-template-columns:200px minmax(0,1fr);gap:0;min-height:calc(100% - 60px)}
+nav.rail{border-right:1px solid var(--line);padding:14px 10px;display:flex;flex-direction:column;gap:2px;background:var(--surface)}
+nav.rail button{all:unset;cursor:pointer;padding:8px 10px;border-radius:6px;color:var(--muted);font-weight:500;display:flex;justify-content:space-between;gap:6px}
+nav.rail button:hover{background:var(--surface-2);color:var(--fg)}
+nav.rail button[aria-current="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+nav.rail button:focus-visible{outline:2px solid var(--accent)}
+nav.rail .flow{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding:12px 10px 4px}
+main{min-width:0;padding-block:20px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+@media (min-width:821px){main{padding-left:28px;padding-right:max(28px,env(safe-area-inset-right,0px))}}
+@media (max-width:820px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  nav.rail{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:8px max(16px,env(safe-area-inset-left,0px))}
+  nav.rail .flow{display:none} nav.rail button{white-space:nowrap}
+}
+h1{font-size:22px;letter-spacing:-.015em;margin:0 0 4px;text-wrap:balance}
+h2{font-size:15px;margin:0;text-wrap:balance}
+.lede{color:var(--muted);margin:0 0 18px;max-width:70ch}
+fieldset.lock{border:0;margin:0;padding:0;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.panel-head .code{font:12px var(--mono);color:var(--muted)}
+.stack{display:flex;flex-direction:column;gap:16px}
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+@media (max-width:1100px){.cols{grid-template-columns:minmax(0,1fr)}}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 14px}
+.grid .wide{grid-column:1/-1}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500;min-width:0}
+label.f .code{font:10.5px var(--mono);color:var(--muted);opacity:.8}
+input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:6px 8px;min-width:0;width:100%}
+textarea{resize:vertical;min-height:70px}
+input.num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+input[type=checkbox]{width:auto}
+.check{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--fg)}
+button.b{border:1px solid var(--line);background:var(--surface);border-radius:5px;padding:6px 12px;cursor:pointer;font-weight:500;white-space:nowrap}
+button.b:hover{background:var(--surface-2)}
+button.b.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+button.b.primary:hover{filter:brightness(1.08)}
+button.b.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 40%,var(--line))}
+button.b.small{padding:3px 8px;font-size:12px}
+button.b:disabled{opacity:.5;cursor:not-allowed}
+button.x{all:unset;cursor:pointer;color:var(--muted);padding:2px 6px;border-radius:4px;font-size:16px;line-height:1}
+button.x:hover{color:var(--bad);background:var(--bad-bg)}
+.row-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.scroll{overflow-x:auto;min-width:0}
+table.t{border-collapse:collapse;width:100%;font-size:13px}
+table.t th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:6px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.t td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.t td.ln{font:12px var(--mono);color:var(--muted);white-space:nowrap}
+table.t td.m, table.t th.m{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+table.t tr.rollup td{background:var(--surface-2);font-weight:600}
+table.t tr.sec td{background:transparent;font-weight:700;padding-top:14px;border-bottom:2px solid var(--line)}
+table.t input{padding:4px 6px}
+table.t .w-desc{min-width:200px} table.t .w-pay{min-width:180px} table.t .w-amt{width:110px;min-width:96px}
+.tag{display:inline-block;font:11px var(--mono);padding:1px 6px;border-radius:4px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.tag.auto{background:var(--accent-soft);color:var(--accent)}
+.mini{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.mini input{width:84px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:13px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.kv .total{font-weight:700;color:var(--fg)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.tile .k{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.tile .v{font:600 20px var(--mono);font-variant-numeric:tabular-nums;margin-top:4px}
+.tile.bad{border-color:var(--bad);background:var(--bad-bg)} .tile.ok{border-color:color-mix(in srgb,var(--ok) 50%,var(--line))}
+.checks{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.checks li{display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;padding:8px 10px;border-radius:6px;background:var(--surface-2);font-size:13px}
+.checks li .ic{font-weight:700}
+.checks li.ok .ic{color:var(--ok)} .checks li.error .ic{color:var(--bad)} .checks li.warn .ic{color:var(--warn)}
+.checks li.error{background:var(--bad-bg)} .checks li.warn{background:var(--warn-bg)}
+.checks small{display:block;color:var(--muted)}
+.banner{padding:10px 14px;border-radius:6px;margin-bottom:14px;font-weight:500}
+.banner.closed{background:var(--ok-bg);color:var(--ok)}
+.empty{color:var(--muted);font-size:13px;padding:6px 0}
+.contact{display:grid;grid-template-columns:160px repeat(auto-fit,minmax(150px,1fr)) auto;gap:8px;align-items:end;padding:10px 0;border-bottom:1px solid var(--line)}
+@media (max-width:700px){.contact{grid-template-columns:1fr 1fr}}
+.contact .used{grid-column:1/-1;font-size:12px;color:var(--muted)}
+.note{font-size:12px;color:var(--muted);max-width:75ch}
+pre.merge{white-space:pre-wrap;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:14px;font:13px/1.5 var(--mono);margin:0}
+/* HUD-1 form: printed-paper look in both themes */
+.hudwrap{overflow-x:auto;min-width:0;padding-bottom:6px}
+.hud{background:var(--paper);color:var(--ink);font:11px/1.25 var(--form);width:860px;padding:22px 26px;margin:0 0 18px;border:1px solid var(--line);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.hud table{border-collapse:collapse;width:100%}
+.hud td,.hud th{border:1px solid var(--rule);padding:3px 5px;vertical-align:top}
+.hud .hdr{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px}
+.hud .hdr h3{margin:0;font-size:16px}
+.hud .omb{font-size:9.5px}
+.hud .lbl{font-size:9.5px;font-weight:700;display:block;margin-bottom:2px}
+.hud .box{min-height:44px}
+.hud .amt{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;width:92px}
+.hud .inner{text-align:right;white-space:nowrap;width:92px;font-variant-numeric:tabular-nums;color:#333}
+.hud .ln{width:34px;white-space:nowrap}
+.hud .sh{background:var(--paper-soft);font-weight:700}
+.hud .tot td{font-weight:700}
+.hud .foot{display:flex;justify-content:space-between;font-size:9px;margin-top:8px}
+.hud .note{font-size:9.5px;color:var(--ink)}
+.hud .cb{font-size:12px}
+.hud .gfe{font-size:9px;color:#444;white-space:nowrap}
+.hud .sig{display:grid;grid-template-columns:1fr 1fr;gap:30px 40px;margin-top:26px}
+.hud .sig div{border-top:1px solid var(--rule);padding-top:4px}
+.chequewrap{overflow-x:auto}
+.cheque{background:var(--paper);color:var(--ink);width:720px;border:1px solid var(--line);border-radius:6px;padding:18px 22px;font:13px var(--form);
+  background-image:repeating-linear-gradient(135deg,rgba(28,77,140,.035) 0 6px,transparent 6px 12px)}
+.cheque .r{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.cheque .pay{border-bottom:1px solid var(--rule);padding:6px 0;margin-top:14px;display:flex;gap:10px}
+.cheque .box{border:1px solid var(--rule);padding:4px 10px;font:600 15px var(--mono)}
+.cheque .micr{font:14px var(--mono);letter-spacing:.2em;margin-top:18px}
+@media print{
+  .top,nav.rail,.noprint{display:none!important} .shell{display:block} main{padding:0}
+  .hud{border:0;box-shadow:none;page-break-after:always;width:100%} body{background:#fff}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div id="app"></div>
+
+<script>
+'use strict';
+const KEY='hub-closing-desk-v1';
+const ROLES=['Buyer','Seller','Lender','Settlement Agent','Title Underwriter','Listing Broker','Selling Broker','Mortgage Payoff Lender','HOA','Tax Collector','Clerk / Recorder','Appraiser','Surveyor','Insurance Agent','Attorney','Other'];
+const LOAN_TYPES=['FHA','RHS','Conv. Unins.','VA','Conv. Ins.'];
+const TABS=[['order','Order','Open'],['contacts','Contacts','Open'],['prorations','Prorations','Build'],['charges','Settlement charges','Build'],['payoffs','Payoffs & credits','Build'],['ledger','Trust ledger','Fund'],['hud','HUD-1 statement','Close'],['codes','Field codes & merge','Close'],['settings','Rates & settings','Setup']];
+
+/* ---------- utilities ---------- */
+const uid=()=>Math.random().toString(36).slice(2,10);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{const n=typeof v==='number'?v:parseFloat(String(v??'').replace(/[$,\s]/g,''));return isFinite(n)?n:0};
+const r2=x=>{x=num(x);return Math.round(x*100+(x>0?1e-7:x<0?-1e-7:0))/100+0};
+const money=n=>{n=r2(n);const s=Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});return (n<0?'-$':'$')+s};
+const fmtIn=(v,d=2)=>num(v).toFixed(d);
+const dnum=s=>{if(!s)return null;const p=String(s).split('-').map(Number);if(p.length<3||!p[0]||!p[1]||!p[2])return null;return Date.UTC(p[0],p[1]-1,p[2])/864e5};
+const dstr=n=>{if(n==null)return '';const d=new Date(n*864e5);return `${String(d.getUTCMonth()+1).padStart(2,'0')}/${String(d.getUTCDate()).padStart(2,'0')}/${d.getUTCFullYear()}`};
+const fmtDate=s=>dstr(dnum(s));
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const getPath=(o,p)=>p.split('.').reduce((a,k)=>a==null?a:a[k],o);
+const setPath=(o,p,v)=>{const ks=p.split('.');const last=ks.pop();const t=ks.reduce((a,k)=>a[k],o);t[last]=v};
+
+function words(n){
+  n=Math.round(Math.abs(n)*100);const d=Math.floor(n/100),c=n%100;
+  const a=['','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+  const t=['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+  const h=x=>{let s='';if(x>=100){s+=a[Math.floor(x/100)]+' hundred';x%=100;if(x)s+=' '}if(x>=20){s+=t[Math.floor(x/10)];if(x%10)s+='-'+a[x%10]}else if(x)s+=a[x];return s};
+  const sc=['',' thousand',' million',' billion'];let parts=[],i=0,x=d;if(!x)parts=['zero'];
+  while(x>0){const ch=x%1000;if(ch)parts.unshift(h(ch)+sc[i]);x=Math.floor(x/1000);i++}
+  const w=parts.join(' ');return w.charAt(0).toUpperCase()+w.slice(1)+' and '+String(c).padStart(2,'0')+'/100 dollars';
+}
+
+/* ---------- order model ---------- */
+function defSettings(){return{
+  tiers:[{upTo:100000,rate:5.75},{upTo:1000000,rate:5.00},{upTo:5000000,rate:2.50},{upTo:10000000,rate:2.25},{upTo:0,rate:2.00}],
+  simultaneous:true,simulFee:25,agentPct:70,
+  deedRate:0.70,countyDeedRate:0,mtgRate:0.35,countyMtgRate:0,intangiblePct:0.2,
+  prorationBasis:'period',buyerOwnsDay:true,interestBasis:365,lenderNets:true}}
+
+function newOrder(){
+  const contacts=['Buyer','Seller','Lender','Settlement Agent','Title Underwriter','Listing Broker','Selling Broker','Tax Collector','Clerk / Recorder']
+    .map(role=>({id:uid(),role,name:'',address:'',phone:'',email:'',ref:''}));
+  const byRole=r=>(contacts.find(c=>c.role===r)||{}).id||'';
+  const it=(line,desc,o={})=>{const {role,...rest}=o;return{id:uid(),line:String(line),desc,payeeId:role?byRole(role):'',b:0,s:0,poc:0,pocBy:'B',...rest}};
+  const items=[
+    it(704,'',{custom:true}),
+    it(801,'Our origination charge',{role:'Lender',roll:'803',gfe:'#1',bOnly:true}),
+    it(802,'Your credit or charge (points) for the specific interest rate chosen',{role:'Lender',roll:'803',gfe:'#2',bOnly:true}),
+    it(804,'Appraisal fee',{gfe:'#3'}),it(805,'Credit report',{gfe:'#3'}),it(806,'Tax service',{gfe:'#3'}),it(807,'Flood certification',{gfe:'#3'}),
+    it(808,'',{custom:true}),it(809,'',{custom:true}),
+    it(901,'Daily interest charges',{role:'Lender',calc:'interest',party:'B',gfe:'#10'}),
+    it(902,'Mortgage insurance premium',{role:'Lender',gfe:'#3',months:''}),
+    it(903,"Homeowner's insurance",{gfe:'#11',years:''}),
+    it(904,'',{custom:true}),
+    it(1002,"Homeowner's insurance",{role:'Lender',roll:'1001',calc:'reserve',party:'B',months:0,monthly:0,bOnly:true}),
+    it(1003,'Mortgage insurance',{role:'Lender',roll:'1001',calc:'reserve',party:'B',months:0,monthly:0,bOnly:true}),
+    it(1004,'Property taxes',{role:'Lender',roll:'1001',calc:'reserve',party:'B',months:0,monthly:0,bOnly:true}),
+    it(1005,'',{role:'Lender',roll:'1001',calc:'reserve',party:'B',months:0,monthly:0,bOnly:true,custom:true}),
+    it(1006,'',{role:'Lender',roll:'1001',calc:'reserve',party:'B',months:0,monthly:0,bOnly:true,custom:true}),
+    it(1007,'Aggregate adjustment',{role:'Lender',roll:'1001',bOnly:true}),
+    it(1102,'Settlement or closing fee',{role:'Settlement Agent',roll:'1101'}),
+    it(1103,"Owner's title insurance",{role:'Settlement Agent',calc:'ownerTitle',party:'S',gfe:'#5'}),
+    it(1104,"Lender's title insurance",{role:'Settlement Agent',calc:'lenderTitle',party:'B',roll:'1101'}),
+    it(1109,'',{role:'Settlement Agent',custom:true}),it(1110,'',{role:'Settlement Agent',custom:true}),it(1111,'',{role:'Settlement Agent',custom:true}),
+    it(1202,'Deed',{sub:'deed',role:'Clerk / Recorder',roll:'1201'}),
+    it(1202,'Mortgage',{sub:'mortgage',role:'Clerk / Recorder',roll:'1201'}),
+    it(1202,'Release',{sub:'release',role:'Clerk / Recorder',roll:'1201'}),
+    it(1204,'Deed',{sub:'deed',role:'Clerk / Recorder',calc:'countyDeed',party:'S',roll:'1203'}),
+    it(1204,'Mortgage',{sub:'mortgage',role:'Clerk / Recorder',calc:'countyMtg',party:'B',roll:'1203'}),
+    it(1205,'Deed',{sub:'deed',role:'Clerk / Recorder',calc:'deedStamps',party:'S',roll:'1203'}),
+    it(1205,'Mortgage',{sub:'mortgage',role:'Clerk / Recorder',calc:'mtgStamps',party:'B',roll:'1203'}),
+    it(1206,'Intangible tax on mortgage',{role:'Clerk / Recorder',calc:'intangible',party:'B',roll:'1203'}),
+    it(1207,'',{custom:true}),
+    it(1302,'',{custom:true,roll:'1301'}),it(1303,'',{custom:true,roll:'1301'}),
+    it(1304,'',{custom:true}),it(1305,'',{custom:true}),
+  ];
+  return{
+    id:uid(),status:'Open',created:today(),
+    fileNo:'',loanNo:'',miCase:'',loanType:'',settlementDate:'',disbursementDate:'',placeOfSettlement:'',
+    property:{street:'',city:'',county:'',state:'',zip:'',parcel:'',legal:''},
+    salesPrice:0,personalProperty:0,loanAmount:0,interestRate:0,existingLoan:0,earnestMoney:0,earnestHolder:'agent',
+    contacts,
+    commission:{rate:0,payer:'S',splits:[{id:uid(),contactId:byRole('Listing Broker'),pct:50},{id:uid(),contactId:byRole('Selling Broker'),pct:50}]},
+    prorations:[
+      {id:uid(),kind:'city',label:'',annual:0,from:'',to:'',status:'paid',note:''},
+      {id:uid(),kind:'county',label:'',annual:0,from:'',to:'',status:'unpaid',note:''},
+      {id:uid(),kind:'assess',label:'',annual:0,from:'',to:'',status:'paid',note:''}],
+    payoffs:[{id:uid(),desc:'Payoff of first mortgage loan',payeeId:'',amount:0},{id:uid(),desc:'Payoff of second mortgage loan',payeeId:'',amount:0}],
+    adjustments:[],items,settings:defSettings(),
+    receipts:[],issued:{},nextCheck:1001,nextWire:1,
+    mergeTemplate:'CLOSING INSTRUCTIONS\nFile {{Order.FileNumber}}  |  Settlement date {{Order.ClosingDate}}\n\nProperty: {{Order.Property.Address}}\nParcel ID: {{Order.Property.ParcelID}}\nLegal: {{Order.Property.Legal}}\n\nBuyer(s): {{Order.Buyer.Names}}\nSeller(s): {{Order.Seller.Names}}\nLender: {{Order.Lender.Name}}  |  Loan amount {{Order.Loan.Amount}}\n\nCash due from borrower (line 303): {{HUD.L303}}\nCash due to seller (line 603): {{HUD.L603}}\nTrust ledger balance: {{Ledger.FileBalance}}'
+  };
+}
+
+function sampleOrder(){
+  const o=newOrder();const C=r=>o.contacts.find(c=>c.role===r);
+  Object.assign(o,{fileNo:'TEST-0001',loanNo:'LN-TEST-01',loanType:'Conv. Unins.',settlementDate:'2026-11-20',disbursementDate:'2026-11-20',
+    placeOfSettlement:'Example Title & Escrow office (test data)',salesPrice:300000,loanAmount:240000,interestRate:6.5,earnestMoney:10000});
+  Object.assign(o.property,{street:'100 Example Street',city:'Sample City',county:'Example County',state:'FL',zip:'00000',parcel:'00-0000-000-0000',legal:'Lot 1, Block 1, EXAMPLE SUBDIVISION (test data, not a real parcel)'});
+  const names={'Buyer':'Test Buyer','Seller':'Test Seller','Lender':'Example Mortgage Co. (test)','Settlement Agent':'Example Title & Escrow (test)','Title Underwriter':'Example Underwriter (test)','Listing Broker':'Listing Realty (test)','Selling Broker':'Selling Realty (test)','Tax Collector':'Example County Tax Collector (test)','Clerk / Recorder':'Example County Clerk (test)'};
+  o.contacts.forEach(c=>{c.name=names[c.role]||'';c.address=c.role==='Buyer'?'200 Current Address Ave, Sample City, FL 00000':c.role==='Seller'?'100 Example Street, Sample City, FL 00000':''});
+  const pl={id:uid(),role:'Mortgage Payoff Lender',name:'Prior Lender Servicing (test)',address:'',phone:'',email:'',ref:'Loan #000000'};o.contacts.push(pl);
+  o.commission.rate=6;
+  o.prorations[1].annual=4800;o.prorations[1].from='2026-01-01';o.prorations[1].to='2026-12-31';
+  const I=(line,sub)=>o.items.find(i=>i.line===String(line)&&(!sub||i.sub===sub));
+  I(801).b=1200;I(804).b=550;I(804).payeeId=C('Lender').id;I(1102).b=495;I(1202,'deed').b=18.5;I(1202,'mortgage').b=95;I(1202,'release').s=10;
+  Object.assign(I(1002),{months:2,monthly:150});Object.assign(I(1004),{months:3,monthly:400});I(1007).b=-300;
+  o.payoffs[0].payeeId=pl.id;o.payoffs[0].amount=150000;
+  o.adjustments.push({id:uid(),type:'sellerCredit',desc:'Seller credit toward closing costs',payeeId:'',amount:3000});
+  return o;
+}
+
+/* ---------- storage ---------- */
+function load(){
+  try{const raw=localStorage.getItem(KEY);if(raw){const d=JSON.parse(raw);if(d&&Array.isArray(d.orders)&&d.orders.length)return d}}catch(e){}
+  const o=newOrder();return{orders:[o],current:o.id};
+}
+let DB=load();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}}
+const O=()=>DB.orders.find(x=>x.id===DB.current)||DB.orders[0];
+
+/* ---------- calculation engine ---------- */
+const DEF={101:'Contract sales price',102:'Personal property',103:'Settlement charges to borrower (line 1400)',106:'City/town taxes',107:'County taxes',108:'Assessments',
+  120:'Gross Amount Due from Borrower',201:'Deposit or earnest money',202:'Principal amount of new loan(s)',203:'Existing loan(s) taken subject to',
+  210:'City/town taxes',211:'County taxes',212:'Assessments',220:'Total Paid by/for Borrower',
+  301:'Gross amount due from borrower (line 120)',302:'Less amounts paid by/for borrower (line 220)',303:'Cash',
+  401:'Contract sales price',402:'Personal property',406:'City/town taxes',407:'County taxes',408:'Assessments',420:'Gross Amount Due to Seller',
+  501:'Excess deposit (see instructions)',502:'Settlement charges to seller (line 1400)',503:'Existing loan(s) taken subject to',504:'Payoff of first mortgage loan',505:'Payoff of second mortgage loan',
+  510:'City/town taxes',511:'County taxes',512:'Assessments',520:'Total Reduction Amount Due Seller',
+  601:'Gross amount due to seller (line 420)',602:'Less reductions in amounts due seller (line 520)',603:'Cash'};
+const PR_KIND={city:['City/town taxes',0],county:['County taxes',1],assess:['Assessments',2],other:['Other',-1]};
+const ADJ_TYPES={
+  sellerCredit:{label:'Seller credit to buyer',sides:[200,500],hint:'Credits the buyer (200 series) and reduces the seller (500 series).'},
+  buyerToSeller:{label:'Buyer reimburses seller',sides:[100,400],hint:'Charges the buyer (100 series) and credits the seller (400 series).'},
+  buyerDebit:{label:'Buyer charge paid to third party',sides:[100],hint:'Buyer debit only. Disbursed to the payee.'},
+  buyerCredit:{label:'Third-party credit to buyer',sides:[200],hint:'Buyer credit only. Expect a receipt from the payer.'},
+  sellerDebit:{label:'Seller charge paid to third party',sides:[500],hint:'Seller reduction only. Disbursed to the payee.'},
+  sellerCredit3:{label:'Third-party credit to seller',sides:[400],hint:'Seller credit only. Expect a receipt from the payer.'}};
+const ALLOW={100:[4,5,9,10,11,12],400:[3,4,5,9,10,11,12],200:[4,5,6,7,8,9,13,14,15,16,17,18,19],500:[6,7,8,9,13,14,15,16,17,18,19]};
+const ROLLUPS={803:['Your adjusted origination charges','#A'],1001:['Initial deposit for your escrow account','#9'],1101:["Title services and lender's title insurance",'#4'],
+  1201:['Government recording charges','#7'],1203:['Transfer taxes','#8'],1301:['Required services that you can shop for','#6']};
+const SECTIONS=[[700,'Total Real Estate Broker Fees'],[800,'Items Payable in Connection with Loan'],[900,'Items Required by Lender to be Paid in Advance'],
+  [1000,'Reserves Deposited with Lender'],[1100,'Title Charges'],[1200,'Government Recording and Transfer Charges'],[1300,'Additional Settlement Charges']];
+
+function tiered(amount,tiers){
+  amount=Math.ceil(num(amount)/1000)*1000;let prev=0,p=0;
+  for(const t of tiers){const cap=num(t.upTo)>0?num(t.upTo):Infinity;const slice=Math.min(amount,cap)-prev;if(slice<=0)break;p+=slice/1000*num(t.rate);prev=cap}
+  return r2(p);
+}
+const stamps=(base,rate)=>num(base)>0&&num(rate)>0?r2(Math.ceil(num(base)/100)*num(rate)):0;
+function prorate(p,P,S){
+  const r={amt:0,daily:0,sDays:0,bDays:0,from:null,to:null,ok:false};
+  const a=num(p.annual),s=dnum(p.from),e=dnum(p.to);
+  if(!a||s==null||e==null||P==null||e<s)return r;
+  const period=e-s+1;const basis=S.prorationBasis==='365'?365:period;r.daily=a/basis;
+  let sd=P-s+(S.buyerOwnsDay!==false?0:1);sd=Math.max(0,Math.min(period,sd));r.sDays=sd;r.bDays=period-sd;
+  if(p.status==='unpaid'){r.amt=r2(r.daily*sd);r.from=s;r.to=s+sd-1}else{r.amt=r2(r.daily*r.bDays);r.from=s+sd;r.to=e}
+  r.ok=true;return r;
+}
+
+function compute(o){
+  const S=o.settings,C={it:{},roll:{},L:{},pr:{},adjLines:{},payLines:{},checks:[]};
+  const price=num(o.salesPrice),loan=num(o.loanAmount),D=num(o.earnestMoney);
+  const byId=id=>o.contacts.find(c=>c.id===id);
+  C.cname=id=>{const c=byId(id);return c?(c.name||`(${c.role}, unnamed)`):''};
+  C.names=role=>o.contacts.filter(c=>c.role===role&&c.name).map(c=>c.name).join(' and ');
+  C.first=role=>o.contacts.find(c=>c.role===role);
+  const isLender=id=>{const c=byId(id);return!!c&&c.role==='Lender'};
+
+  const owner=price>0?tiered(price,S.tiers):0;let lenderP=0;
+  if(loan>0){lenderP=S.simultaneous&&price>0?r2(num(S.simulFee)+Math.max(0,tiered(loan,S.tiers)-tiered(price,S.tiers))):tiered(loan,S.tiers)}
+  C.ownerPrem=owner;C.lenderPrem=lenderP;
+
+  const ii={from:null,to:null,perDiem:0,days:0,amt:0};const Dd=dnum(o.disbursementDate||o.settlementDate);
+  if(Dd!=null&&loan>0&&num(o.interestRate)>0){const d=new Date(Dd*864e5);const fn=Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,1)/864e5;
+    ii.days=fn-Dd;ii.perDiem=r2(loan*num(o.interestRate)/100/(num(S.interestBasis)||365));ii.amt=r2(ii.perDiem*ii.days);ii.from=Dd;ii.to=fn}
+  C.interest=ii;
+  const calcAmt=it=>{switch(it.calc){
+    case 'interest':return ii.amt;case 'reserve':return r2(num(it.months)*num(it.monthly));
+    case 'ownerTitle':return owner;case 'lenderTitle':return lenderP;
+    case 'deedStamps':return stamps(price,S.deedRate);case 'countyDeed':return stamps(price,S.countyDeedRate);
+    case 'mtgStamps':return stamps(loan,S.mtgRate);case 'countyMtg':return stamps(loan,S.countyMtgRate);
+    case 'intangible':return r2(loan*num(S.intangiblePct)/100)}return 0};
+
+  let B=0,Sx=0;
+  for(const it of o.items){
+    let b=num(it.b),s=num(it.s);
+    if(it.calc&&(!it.override||it.calc==='reserve')){const a=calcAmt(it);if(it.party==='S'){b=0;s=a}else if(it.party==='split'){b=r2(a/2);s=r2(a-b)}else{b=a;s=0}}
+    if(it.bOnly)s=0;b=r2(b);s=r2(s);C.it[it.id]={b,s};
+    if(it.roll)C.roll[it.roll]=r2((C.roll[it.roll]||0)+b);B+=b;Sx+=s;
+  }
+  const cm=o.commission;C.commTotal=r2(price*num(cm.rate)/100);
+  C.splits=cm.splits.map(sp=>({...sp,amt:r2(C.commTotal*num(sp.pct)/100)}));
+  C.splitPct=cm.splits.reduce((a,x)=>a+num(x.pct),0);
+  C.commPaid=r2(C.splits.reduce((a,x)=>a+x.amt,0));
+  C.commB=cm.payer==='B'?C.commPaid:0;C.commS=cm.payer==='B'?0:C.commPaid;
+  C.B1400=r2(B+C.commB);C.S1400=r2(Sx+C.commS);
+
+  const holder=o.earnestHolder||'agent';let retained=0,excess=0;
+  if(holder!=='agent'&&D>0){const sp=C.splits.find(x=>x.contactId===holder);retained=Math.min(D,sp?sp.amt:0);excess=r2(D-retained)}
+  C.retained=r2(retained);C.excess=excess;C.holder=holder;
+
+  const L=C.L,used=new Set([504,505]);
+  const setL=(n,desc,amt,extra={})=>{L[n]={desc,amt:r2(amt),...extra};used.add(n)};
+  setL(101,DEF[101],price);setL(401,DEF[401],price);
+  if(num(o.personalProperty)){setL(102,DEF[102],o.personalProperty);setL(402,DEF[402],o.personalProperty)}
+  setL(103,DEF[103],C.B1400);setL(201,DEF[201],D);setL(202,DEF[202],loan);
+  if(num(o.existingLoan)){setL(203,DEF[203],o.existingLoan);setL(503,DEF[503],o.existingLoan)}
+  if(excess)setL(501,DEF[501],excess);setL(502,DEF[502],C.S1400);
+  const alloc=(sides,prefs)=>{for(const suf of prefs){if(sides.every(b=>ALLOW[b].includes(suf)&&!used.has(b+suf))){sides.forEach(b=>used.add(b+suf));return suf}}return null};
+  const DEFPREF=[3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19],UNPAIDPREF=[13,14,15,16,17,18,19,6,7,8,9];
+  C.unplaced=[];
+
+  const P=dnum(o.settlementDate);
+  for(const p of o.prorations){
+    const r=prorate(p,P,S);C.pr[p.id]=r;if(!r.amt)continue;
+    const [label,idx]=PR_KIND[p.kind]||PR_KIND.other;const desc=p.kind==='other'?(p.label||'Other proration'):label;
+    const paid=p.status!=='unpaid';const bases=paid?[100,400]:[200,500];
+    let suf=null;
+    if(idx>=0){const cand=paid?6+idx:10+idx;if(!used.has(bases[0]+cand)&&!used.has(bases[1]+cand)){suf=cand;bases.forEach(b=>used.add(b+suf))}}
+    if(suf==null)suf=alloc(bases,paid?DEFPREF:UNPAIDPREF);
+    if(suf==null){C.unplaced.push(desc);continue}
+    bases.forEach(b=>{L[b+suf]={desc,amt:r.amt,from:r.from,to:r.to,pr:true}});r.lines=bases.map(b=>b+suf);
+  }
+  o.payoffs.forEach((p,i)=>{
+    const amt=num(p.amount);if(!amt)return;let line=i<2&&!L[504+i]?504+i:null;
+    if(line==null){const suf=alloc([500],DEFPREF);if(suf==null){C.unplaced.push(p.desc);return}line=500+suf}
+    used.add(line);const nm=C.cname(p.payeeId);L[line]={desc:(p.desc||'Payoff')+(nm?' to '+nm:''),amt:r2(amt)};C.payLines[p.id]=line;
+  });
+  o.adjustments.forEach(a=>{
+    const amt=num(a.amount);if(!amt)return;const t=ADJ_TYPES[a.type];if(!t)return;
+    const suf=alloc(t.sides,DEFPREF);if(suf==null){C.unplaced.push(a.desc);return}
+    const nm=C.cname(a.payeeId);const desc=(a.desc||t.label)+(t.sides.length===1&&nm?(t.sides[0]===200||t.sides[0]===400?' from ':' to ')+nm:'');
+    t.sides.forEach(b=>{L[b+suf]={desc,amt:r2(amt)}});C.adjLines[a.id]=t.sides.map(b=>b+suf);
+  });
+  const sum=(a,b)=>{let t=0;for(let n=a;n<=b;n++)if(L[n])t+=L[n].amt;return r2(t)};
+  setL(120,DEF[120],sum(101,112));setL(220,DEF[220],sum(201,219));setL(420,DEF[420],sum(401,412));setL(520,DEF[520],sum(501,519));
+  setL(301,DEF[301],L[120].amt);setL(302,DEF[302],L[220].amt);setL(303,DEF[303],r2(L[120].amt-L[220].amt));
+  setL(601,DEF[601],L[420].amt);setL(602,DEF[602],L[520].amt);setL(603,DEF[603],r2(L[420].amt-L[520].amt));
+
+  /* trust ledger: expected receipts and disbursements derived from the statement */
+  const DM=new Map(),exp=[];
+  const pkey=id=>id&&byId(id)?'p:'+id:'nopayee';
+  const addD=(key,payeeId,name,amt,ref)=>{amt=r2(amt);if(!amt)return;let d=DM.get(key);if(!d){d={key,payeeId,name:key==='nopayee'?'No payee assigned':name,amt:0,refs:[]};DM.set(key,d)}d.amt=r2(d.amt+amt);d.refs.push(ref)};
+  const uw=C.first('Title Underwriter');let netted=0;const nettedRefs=[];
+  const lineLabel=it=>`${it.line}${it.sub?' '+it.sub:''} ${it.desc||''}`.trim();
+  for(const it of o.items){
+    const {b,s}=C.it[it.id];const t=r2(b+s);if(!t)continue;const ref=lineLabel(it);
+    if(S.lenderNets&&isLender(it.payeeId)){netted=r2(netted+t);nettedRefs.push(ref);continue}
+    if(it.calc==='ownerTitle'||it.calc==='lenderTitle'){const ag=r2(t*num(S.agentPct)/100);
+      addD(pkey(it.payeeId),it.payeeId,C.cname(it.payeeId),ag,ref+' (agent portion)');
+      addD(uw?pkey(uw.id):'nopayee',uw&&uw.id,uw?C.cname(uw.id):'',r2(t-ag),ref+' (underwriter portion)');continue}
+    addD(pkey(it.payeeId),it.payeeId,C.cname(it.payeeId),t,ref);
+  }
+  C.splits.forEach(sp=>{const ret=sp.contactId===holder?C.retained:0;addD(pkey(sp.contactId),sp.contactId,C.cname(sp.contactId),r2(sp.amt-ret),'703 Commission'+(ret?` (net of ${money(ret)} deposit held)`:''))});
+  o.payoffs.forEach(p=>{if(num(p.amount)&&C.payLines[p.id])addD(pkey(p.payeeId),p.payeeId,C.cname(p.payeeId),p.amount,`${C.payLines[p.id]} ${p.desc}`)});
+  o.adjustments.forEach(a=>{const ln=C.adjLines[a.id];if(!ln)return;const t=a.type;
+    if(t==='buyerDebit'||t==='sellerDebit')addD(pkey(a.payeeId),a.payeeId,C.cname(a.payeeId),a.amount,`${ln[0]} ${a.desc}`);
+    if(t==='buyerCredit'||t==='sellerCredit3')exp.push({key:'adj:'+a.id,kind:'Third-party credit',from:C.cname(a.payeeId)||'Payer not set',amt:r2(a.amount),ref:`${ln[0]} ${a.desc}`})});
+  const buyers=C.names('Buyer')||'Borrower',sellers=C.names('Seller')||'Seller',lender=C.first('Lender');
+  if(holder==='agent'&&D>0)exp.push({key:'em',kind:'Earnest money deposit',from:buyers,amt:D,ref:'201'});
+  const wire=r2(loan-netted);
+  if(wire)exp.push({key:'lender',kind:'Lender funding wire',from:lender?C.cname(lender.id):'Lender',amt:wire,ref:netted?`202 less ${money(netted)} lender fees netted`:'202'});
+  if(L[303].amt>0)exp.push({key:'buyer',kind:'Cash from borrower',from:buyers,amt:L[303].amt,ref:'303'});
+  else if(L[303].amt<0){const b0=C.first('Buyer');addD('buyer',b0&&b0.id,buyers,-L[303].amt,'303 Cash to borrower')}
+  if(L[603].amt>0){const s0=C.first('Seller');addD('seller',s0&&s0.id,sellers,L[603].amt,'603 Cash to seller')}
+  else if(L[603].amt<0)exp.push({key:'seller',kind:'Cash from seller',from:sellers,amt:-L[603].amt,ref:'603'});
+  C.netted=netted;C.nettedRefs=nettedRefs;C.exp=exp;C.disb=[...DM.values()];
+  C.expTotal=r2(exp.reduce((a,x)=>a+x.amt,0));C.disbTotal=r2(C.disb.reduce((a,x)=>a+x.amt,0));
+  C.recTotal=r2(o.receipts.reduce((a,x)=>a+num(x.amount),0));
+  C.issuedTotal=r2(Object.values(o.issued).reduce((a,x)=>a+num(x.amount),0));
+  C.fileBal=r2(C.recTotal-C.disbTotal);C.trustBal=r2(C.recTotal-C.issuedTotal);C.engine=r2(C.expTotal-C.disbTotal);
+
+  /* discrepancy protection */
+  const chk=(ok,label,detail,sev='error')=>C.checks.push({ok,label,detail,sev});
+  chk(Math.abs(C.engine)<0.005,'Statement ties out',`Expected receipts ${money(C.expTotal)} vs. expected disbursements ${money(C.disbTotal)}`);
+  chk(L[103].amt===C.B1400,'Line 1400 borrower total carries to line 103',money(C.B1400));
+  chk(L[502].amt===C.S1400,'Line 1400 seller total carries to line 502',money(C.S1400));
+  chk(L[202].amt===r2(loan),'Line 202 matches the loan amount on the order',money(loan));
+  const np=C.disb.find(d=>d.key==='nopayee');
+  chk(!np,'Every charge has a payee',np?'Missing payee: '+np.refs.join('; '):'All disbursement lines are assigned');
+  if(num(cm.rate)>0)chk(Math.abs(C.splitPct-100)<0.001,'Commission splits total 100%',`${r2(C.splitPct)}% of ${money(C.commTotal)} allocated`);
+  chk(!C.unplaced.length,'Every adjustment has a HUD line',C.unplaced.length?'No free line for: '+C.unplaced.join(', '):'All placed');
+  const diff=r2(C.recTotal-C.expTotal);
+  chk(Math.abs(diff)<0.005,'Receipts match the statement',diff<0?`Receipts short ${money(-diff)}. Record the missing funds before disbursing.`:diff>0?`Receipts over by ${money(diff)}. Refund or adjust the statement.`:`${money(C.recTotal)} received`);
+  const bad=[];for(const [k,iss] of Object.entries(o.issued)){const d=C.disb.find(x=>x.key===k);
+    if(!d)bad.push(`${iss.method} ${iss.no} to ${iss.name} is no longer on the statement. Void it.`);
+    else if(r2(d.amt)!==r2(iss.amount))bad.push(`${iss.method} ${iss.no} to ${iss.name} was issued for ${money(iss.amount)}; statement now shows ${money(d.amt)}. Void and reissue.`)}
+  chk(!bad.length,'Issued checks and wires match the statement',bad.join(' ')||(Object.keys(o.issued).length?'No mismatches':'Nothing issued yet'));
+  const w=(ok,label,detail)=>chk(ok,label,detail,'warn');
+  w(!!C.names('Buyer'),'Buyer named on Contacts','Feeds HUD box D, signature lines and receipts');
+  w(!!C.names('Seller'),'Seller named on Contacts','Feeds HUD box E and the seller proceeds check');
+  w(!!o.settlementDate,'Settlement date entered','Drives prorations, per-diem interest and box I');
+  w(!!o.property.street,'Property address entered','Feeds HUD box G');
+  if(loan>0)w(!!C.names('Lender'),'Lender named on Contacts','Feeds HUD box F and the funding receipt');
+  const badPr=o.prorations.filter(p=>num(p.annual)&&!C.pr[p.id].ok);
+  w(!badPr.length,'Prorations have complete dates',badPr.length?`${badPr.length} proration(s) need a period and a settlement date`:'OK');
+  C.errors=C.checks.filter(c=>!c.ok&&c.sev==='error').length;C.warns=C.checks.filter(c=>!c.ok&&c.sev==='warn').length;
+  return C;
+}
+
+/* ---------- field codes ---------- */
+const addrOf=c=>c?c.address:'';
+const FIELDS=[
+  ['Order.FileNumber','File number',o=>o.fileNo],['Order.LoanNumber','Loan number',o=>o.loanNo],['Order.LoanType','Loan type',o=>o.loanType],
+  ['Order.ClosingDate','Settlement date',o=>fmtDate(o.settlementDate)],['Order.DisbursementDate','Disbursement date',o=>fmtDate(o.disbursementDate)],
+  ['Order.Buyer.Names','Buyer name(s)',(o,C)=>C.names('Buyer')],['Order.Buyer.Address','Buyer address',(o,C)=>addrOf(C.first('Buyer'))],
+  ['Order.Seller.Names','Seller name(s)',(o,C)=>C.names('Seller')],['Order.Seller.Address','Seller address',(o,C)=>addrOf(C.first('Seller'))],
+  ['Order.Lender.Name','Lender',(o,C)=>C.names('Lender')],['Order.SettlementAgent.Name','Settlement agent',(o,C)=>C.names('Settlement Agent')],
+  ['Order.Underwriter.Name','Title underwriter',(o,C)=>C.names('Title Underwriter')],
+  ['Order.Property.Address','Property address',o=>propAddr(o)],['Order.Property.County','County',o=>o.property.county],
+  ['Order.Property.ParcelID','Parcel ID',o=>o.property.parcel],['Order.Property.Legal','Legal description',o=>o.property.legal],
+  ['Order.SalesPrice','Contract sales price',o=>money(o.salesPrice)],['Order.Loan.Amount','Loan amount',o=>money(o.loanAmount)],
+  ['Order.Loan.Rate','Interest rate',o=>num(o.interestRate)+'%'],['Order.EarnestMoney','Earnest money',o=>money(o.earnestMoney)],
+  ['Title.OwnerPremium',"Owner's premium (rate table)",(o,C)=>money(C.ownerPrem)],['Title.LenderPremium',"Lender's premium (rate table)",(o,C)=>money(C.lenderPrem)],
+  ['Commission.Total','Total broker fees (line 700)',(o,C)=>money(C.commTotal)],
+  ['HUD.L103','Line 103',(o,C)=>money(C.L[103].amt)],['HUD.L120','Line 120',(o,C)=>money(C.L[120].amt)],['HUD.L220','Line 220',(o,C)=>money(C.L[220].amt)],
+  ['HUD.L303','Line 303 cash from/to borrower',(o,C)=>money(C.L[303].amt)],['HUD.L420','Line 420',(o,C)=>money(C.L[420].amt)],
+  ['HUD.L520','Line 520',(o,C)=>money(C.L[520].amt)],['HUD.L603','Line 603 cash to/from seller',(o,C)=>money(C.L[603].amt)],
+  ['HUD.L1400.Borrower','Line 1400 borrower',(o,C)=>money(C.B1400)],['HUD.L1400.Seller','Line 1400 seller',(o,C)=>money(C.S1400)],
+  ['Ledger.ExpectedReceipts','Expected receipts',(o,C)=>money(C.expTotal)],['Ledger.Receipts','Recorded receipts',(o,C)=>money(C.recTotal)],
+  ['Ledger.Disbursements','Disbursements',(o,C)=>money(C.disbTotal)],['Ledger.FileBalance','File balance',(o,C)=>money(C.fileBal)]];
+function propAddr(o){const p=o.property;const l2=[p.city,[p.state,p.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');return [p.street,l2].filter(Boolean).join(', ')}
+function merge(o,C){const map={};FIELDS.forEach(([k,,f])=>map[k]=f(o,C)??'');
+  return String(o.mergeTemplate||'').replace(/\{\{\s*([\w.]+)\s*\}\}/g,(m,k)=>k in map?(map[k]||'____'):`[unknown field ${k}]`)}
+
+/* ---------- view helpers ---------- */
+let OUT=[];let UI={tab:'order',confirmDelete:false,check:null,io:''};
+const out=(fn,tag='span',cls='')=>{const i=OUT.push(fn)-1;return `<${tag}${cls?` class="${cls}"`:''} data-out="${i}"></${tag}>`};
+const fid=p=>'f-'+p.replace(/\./g,'-');
+function inp(path,{num:isNum=false,dec=2,type='text',ph='',cls=''}={}){
+  let v=getPath(O(),path);if(isNum)v=fmtIn(v,dec);
+  return `<input id="${fid(path)}" class="${cls}${isNum?' num':''}" type="${type}" data-bind="${path}"${isNum?` data-num="${dec}" inputmode="decimal"`:''} value="${esc(v??'')}"${ph?` placeholder="${esc(ph)}"`:''}>`}
+function sel(path,opts,{re=false}={}){const v=String(getPath(O(),path)??'');
+  return `<select id="${fid(path)}" data-bind="${path}"${re?' data-re="1"':''}>${opts.map(([val,l])=>`<option value="${esc(val)}"${String(val)===v?' selected':''}>${esc(l)}</option>`).join('')}</select>`}
+function chk(path,label){return `<label class="check"><input id="${fid(path)}" type="checkbox" data-bind="${path}" data-re="1"${getPath(O(),path)?' checked':''}> ${esc(label)}</label>`}
+function fld(label,control,code='',cls=''){return `<label class="f${cls?' '+cls:''}"><span>${esc(label)}${code?` <span class="code">${esc(code)}</span>`:''}</span>${control}</label>`}
+function contactOpts(blank='— Select payee —'){return [['',blank],...O().contacts.map(c=>[c.id,`${c.name||'(unnamed)'} · ${c.role}`])]}
+
+/* ---------- panels ---------- */
+const PANELS={};
+PANELS.order=()=>{const o=O();return `
+<h1>Order</h1><p class="lede">Enter each fact once. Every screen, the HUD-1, the ledger and merged documents read from these fields.</p>
+<div class="cols"><div class="stack">
+ <section class="panel"><div class="panel-head"><h2>File</h2><span class="code">HUD boxes B, 6, 7, 8</span></div><div class="grid">
+  ${fld('File number',inp('fileNo'),'Order.FileNumber')}${fld('Loan number',inp('loanNo'),'Order.LoanNumber')}
+  ${fld('Mortgage insurance case no.',inp('miCase'))}${fld('Type of loan',sel('loanType',[['','— Select —'],...LOAN_TYPES.map(t=>[t,t])]),'Order.LoanType')}
+ </div></section>
+ <section class="panel"><div class="panel-head"><h2>Dates & place</h2><span class="code">HUD boxes H, I</span></div><div class="grid">
+  ${fld('Settlement date',inp('settlementDate',{type:'date'}),'Order.ClosingDate')}${fld('Disbursement date',inp('disbursementDate',{type:'date'}),'Order.DisbursementDate')}
+  ${fld('Place of settlement',inp('placeOfSettlement'),'','wide')}
+ </div></section>
+ <section class="panel"><div class="panel-head"><h2>Property</h2><span class="code">HUD box G</span></div><div class="grid">
+  ${fld('Street address',inp('property.street'),'Order.Property.Address','wide')}${fld('City',inp('property.city'))}${fld('County',inp('property.county'))}
+  ${fld('State',inp('property.state'))}${fld('ZIP',inp('property.zip'))}${fld('Parcel ID',inp('property.parcel'),'Order.Property.ParcelID')}
+  <label class="f wide"><span>Legal description <span class="code">Order.Property.Legal</span></span><textarea id="f-legal" data-bind="property.legal">${esc(o.property.legal)}</textarea></label>
+ </div></section>
+ <section class="panel"><div class="panel-head"><h2>Sale & loan terms</h2><span class="code">Lines 101, 102, 201, 202, 203</span></div><div class="grid">
+  ${fld('Contract sales price',inp('salesPrice',{num:true}),'Order.SalesPrice')}${fld('Personal property',inp('personalProperty',{num:true}))}
+  ${fld('Earnest money deposit',inp('earnestMoney',{num:true}),'Order.EarnestMoney')}
+  ${fld('Deposit held by',sel('earnestHolder',[['agent','Settlement agent (receipt into escrow)'],...o.contacts.map(c=>[c.id,`${c.name||'(unnamed)'} · ${c.role}`])]))}
+  ${fld('Loan amount',inp('loanAmount',{num:true}),'Order.Loan.Amount')}${fld('Interest rate %',inp('interestRate',{num:true,dec:3}),'Order.Loan.Rate')}
+  ${fld('Existing loan taken subject to',inp('existingLoan',{num:true}))}
+ </div></section>
+</div>
+<aside class="panel"><div class="panel-head"><h2>Live summary</h2></div>${out(C=>`<dl class="kv">
+  <dt>Settlement charges, borrower</dt><dd>${money(C.B1400)}</dd><dt>Settlement charges, seller</dt><dd>${money(C.S1400)}</dd>
+  <dt>Gross due from borrower (120)</dt><dd>${money(C.L[120].amt)}</dd><dt>Paid by/for borrower (220)</dt><dd>${money(C.L[220].amt)}</dd>
+  <dt class="total">Cash ${C.L[303].amt>=0?'from':'to'} borrower (303)</dt><dd class="total">${money(Math.abs(C.L[303].amt))}</dd>
+  <dt>Gross due to seller (420)</dt><dd>${money(C.L[420].amt)}</dd><dt>Reductions to seller (520)</dt><dd>${money(C.L[520].amt)}</dd>
+  <dt class="total">Cash ${C.L[603].amt>=0?'to':'from'} seller (603)</dt><dd class="total">${money(Math.abs(C.L[603].amt))}</dd>
+  <dt>Ledger file balance</dt><dd>${money(C.fileBal)}</dd></dl>`)}
+  <p class="note">Deposit held by a broker is netted from that broker's commission check. Any amount above the commission posts to line 501.</p>
+</aside></div>`};
+
+PANELS.contacts=()=>{const o=O();return `
+<h1>Contacts</h1><p class="lede">Every party on the file. Payee dropdowns on charges, payoffs and the ledger pull from this list, so a name typed here flows to every check and HUD line.</p>
+<section class="panel">
+ ${o.contacts.map((c,i)=>`<div class="contact">
+  ${fld('Role',sel(`contacts.${i}.role`,ROLES.map(r=>[r,r]),{re:true}))}
+  ${fld('Name',inp(`contacts.${i}.name`))}${fld('Address',inp(`contacts.${i}.address`))}${fld('Phone',inp(`contacts.${i}.phone`))}
+  ${fld('Email',inp(`contacts.${i}.email`))}${fld('Tax ID / account / ref',inp(`contacts.${i}.ref`))}
+  <button class="x" data-act="delContact" data-id="${c.id}" aria-label="Remove contact" title="Remove contact">×</button>
+  ${out(C=>{const d=C.disb.find(x=>x.payeeId===c.id);const n=o.items.filter(it=>it.payeeId===c.id).length;
+     return d?`Payee on ${d.refs.length} line(s): ${esc(d.refs.slice(0,4).join('; '))}${d.refs.length>4?'…':''} · disbursement ${money(d.amt)}`:n?`Assigned to ${n} charge line(s), currently $0.00`:'Not assigned to any charge'},'div','used')}
+ </div>`).join('')}
+ <div class="row-actions"><select id="new-role" aria-label="Role for new contact">${ROLES.map(r=>`<option>${r}</option>`).join('')}</select>
+  <button class="b" data-act="addContact">Add contact</button></div>
+</section>`};
+
+PANELS.prorations=()=>{const o=O();return `
+<h1>Prorations</h1><p class="lede">Taxes and assessments split by day between buyer and seller as of the settlement date (${esc(fmtDate(o.settlementDate))||'not set'}). Paid-in-advance items post to lines 106–112 and 406–412. Unpaid items post to 210–219 and 510–519.</p>
+<section class="panel"><div class="grid">
+ ${fld('Daily basis',sel('settings.prorationBasis',[['period','Actual days in period'],['365','365-day year']]))}
+ <div class="f" style="justify-content:flex-end">${chk('settings.buyerOwnsDay','Buyer owns the day of closing')}</div></div></section>
+<section class="panel"><div class="scroll"><table class="t">
+<thead><tr><th>Item</th><th>Label</th><th class="m">Annual amount</th><th>Period from</th><th>Period to</th><th>Status</th><th class="m">Per day</th><th class="m">Seller / buyer days</th><th class="m">Credit</th><th>HUD lines</th><th></th></tr></thead><tbody>
+${o.prorations.map((p,i)=>`<tr>
+ <td>${sel(`prorations.${i}.kind`,[['city','City/town taxes'],['county','County taxes'],['assess','Assessments'],['other','Other (HOA, etc.)']],{re:true})}</td>
+ <td class="w-desc">${p.kind==='other'?inp(`prorations.${i}.label`,{ph:'e.g. HOA dues'}):'<span class="empty">Standard line</span>'}</td>
+ <td class="w-amt">${inp(`prorations.${i}.annual`,{num:true})}</td>
+ <td>${inp(`prorations.${i}.from`,{type:'date'})}</td><td>${inp(`prorations.${i}.to`,{type:'date'})}</td>
+ <td>${sel(`prorations.${i}.status`,[['paid','Paid in advance by seller'],['unpaid','Unpaid by seller']])}</td>
+ <td class="m">${out(C=>money(C.pr[p.id]?C.pr[p.id].daily:0))}</td>
+ <td class="m">${out(C=>{const r=C.pr[p.id];return r&&r.ok?`${r.sDays} / ${r.bDays}`:'—'})}</td>
+ <td class="m">${out(C=>{const r=C.pr[p.id];return r?`<b>${money(r.amt)}</b>`:money(0)})}</td>
+ <td>${out(C=>{const r=C.pr[p.id];return r&&r.lines?`<span class="tag">${r.lines.join(' / ')}</span>`:'<span class="tag">—</span>'})}</td>
+ <td><button class="x" data-act="delRow" data-list="prorations" data-i="${i}" aria-label="Remove">×</button></td></tr>`).join('')}
+</tbody></table></div>
+<div class="row-actions"><button class="b" data-act="addProration">Add proration</button></div>
+<p class="note">Paid in advance: seller already paid the full period, so the buyer reimburses the seller for the buyer's days. Unpaid: taxes are paid in arrears, so the seller credits the buyer for the seller's days.</p>
+</section>`};
+
+function itemRow(it,i){
+  const p=`items.${i}`,auto=it.calc&&(it.calc==='reserve'||!it.override);
+  let desc=it.custom?inp(`${p}.desc`,{ph:'Description'}):`<span>${esc(it.sub?`${it.desc} ${it.line==='1202'?'recording':it.line==='1204'?'city/county tax':'state stamps'}`:it.desc)}</span>`;
+  if(it.calc==='reserve')desc+=`<div class="mini">${inp(`${p}.months`,{num:true,dec:0})} months @ ${inp(`${p}.monthly`,{num:true})} per month</div>`;
+  if(it.line==='902')desc+=`<div class="mini">for ${inp(`${p}.months`,{ph:'months'})} months</div>`;
+  if(it.line==='903')desc+=`<div class="mini">for ${inp(`${p}.years`,{ph:'years'})} years</div>`;
+  if(it.calc==='interest')desc+=`<div class="mini">${out(C=>{const x=C.interest;return x.days?`${dstr(x.from)} to ${dstr(x.to)}, ${x.days} days @ ${money(x.perDiem)}/day`:'Needs loan amount, rate and disbursement date'})}</div>`;
+  const cell=(k)=>auto?out(C=>money(C.it[it.id][k])):inp(`${p}.${k}`,{num:true});
+  let opts='';
+  if(it.calc&&it.calc!=='reserve'){opts+=`<span class="tag auto">calc</span> `;
+    if(!it.override)opts+=sel(`${p}.party`,[['B','Borrower'],['S','Seller'],['split','Split 50/50']],{re:true});
+    opts+=`<label class="check" style="font-size:12px"><input id="${fid(p+'.override')}" type="checkbox" data-bind="${p}.override" data-re="1"${it.override?' checked':''}> Override</label>`}
+  if(it.calc==='reserve')opts+='<span class="tag auto">months × rate</span> ';
+  if(it.roll)opts+=` <span class="tag" title="Borrower amount rolls into line ${it.roll}">→ ${it.roll}</span>`;
+  if(it.gfe)opts+=` <span class="tag">GFE ${esc(it.gfe)}</span>`;
+  return `<tr><td class="ln">${esc(it.line)}</td><td class="w-desc">${desc}</td><td class="w-pay">${sel(`${p}.payeeId`,contactOpts())}</td>
+  <td class="w-amt">${cell('b')}</td><td class="w-amt">${it.bOnly?'<span class="empty">—</span>':cell('s')}</td>
+  <td class="w-amt"><div class="mini" style="flex-wrap:nowrap">${inp(`${p}.poc`,{num:true})}${sel(`${p}.pocBy`,[['B','B'],['S','S'],['L','L'],['R','Br']])}</div></td>
+  <td><div class="mini">${opts}</div></td>
+  <td>${it.custom?`<button class="x" data-act="delRow" data-list="items" data-i="${i}" aria-label="Remove line">×</button>`:''}</td></tr>`;
+}
+PANELS.charges=()=>{const o=O();const cm=o.commission;
+  const rows=SECTIONS.slice(1).map(([sec,title])=>{
+    const its=o.items.map((it,i)=>({it,i})).filter(x=>num(x.it.line)>=sec&&num(x.it.line)<sec+100);
+    const rolls=Object.keys(ROLLUPS).map(Number).filter(n=>n>=sec&&n<sec+100);
+    const list=[...its.map(x=>({n:num(x.it.line),html:itemRow(x.it,x.i)})),...rolls.map(n=>({n,html:`<tr class="rollup"><td class="ln">${n}</td><td>${esc(ROLLUPS[n][0])}</td><td></td><td class="m">${out(C=>money(C.roll[n]||0))}</td><td></td><td></td><td><span class="tag">GFE ${ROLLUPS[n][1]} · total</span></td><td></td></tr>`}))]
+      .sort((a,b)=>a.n-b.n);
+    return `<tr class="sec"><td class="ln">${sec}</td><td colspan="6">${esc(title)}</td><td><button class="b small" data-act="addLine" data-sec="${sec}">Add line</button></td></tr>${list.map(x=>x.html).join('')}`}).join('');
+  return `
+<h1>Settlement charges</h1><p class="lede">Lines 700–1300 of the HUD-1. Pick a payee for each charge and it becomes a pending disbursement on the trust ledger. Lines tagged <span class="tag auto">calc</span> come from the rate tables on Rates & settings.</p>
+<div class="stack">
+<section class="panel"><div class="panel-head"><h2>700 · Real estate broker fees</h2>${out(C=>`<span class="code">${money(num(o.salesPrice))} × ${num(cm.rate)}% = ${money(C.commTotal)}</span>`)}</div>
+ <div class="grid">${fld('Commission rate %',inp('commission.rate',{num:true,dec:3}))}${fld('Paid from',sel('commission.payer',[['S',"Seller's funds"],['B',"Borrower's funds"]]))}</div>
+ <div class="scroll"><table class="t"><thead><tr><th>Line</th><th>Broker</th><th class="m">Share %</th><th class="m">Amount</th><th></th></tr></thead><tbody>
+ ${cm.splits.map((sp,i)=>`<tr><td class="ln">${701+i<=702?701+i:'702'}</td><td class="w-pay">${sel(`commission.splits.${i}.contactId`,contactOpts('— Select broker —'))}</td>
+  <td class="w-amt">${inp(`commission.splits.${i}.pct`,{num:true})}</td><td class="m">${out(C=>money(C.splits[i]?C.splits[i].amt:0))}</td>
+  <td><button class="x" data-act="delRow" data-list="commission.splits" data-i="${i}" aria-label="Remove split">×</button></td></tr>`).join('')}
+ <tr class="rollup"><td class="ln">703</td><td>Commission paid at settlement</td><td class="m">${out(C=>r2(C.splitPct)+'%')}</td><td class="m">${out(C=>money(C.commPaid))}</td><td></td></tr>
+ </tbody></table></div>
+ <div class="row-actions"><button class="b" data-act="addSplit">Add broker split</button></div>
+</section>
+<section class="panel"><div class="scroll"><table class="t">
+ <thead><tr><th>Line</th><th>Description</th><th>Payee</th><th class="m">Borrower</th><th class="m">Seller</th><th class="m">P.O.C. / by</th><th>Rules</th><th></th></tr></thead>
+ <tbody>${rows}
+ <tr class="rollup"><td class="ln">1400</td><td>Total settlement charges (enter on lines 103 and 502)</td><td></td><td class="m">${out(C=>money(C.B1400))}</td><td class="m">${out(C=>money(C.S1400))}</td><td></td><td></td><td></td></tr>
+ </tbody></table></div>
+ <p class="note">P.O.C. amounts were paid outside closing. They print on the HUD for information and stay out of totals and the ledger. A borrower amount on a line marked → rolls into that total line, as the 2010 HUD-1 requires.</p>
+</section></div>`};
+
+PANELS.payoffs=()=>{const o=O();return `
+<h1>Payoffs & credits</h1><p class="lede">Liens paid at closing and any credits between the parties. Each entry takes the next open HUD line and, where money moves to or from a third party, an entry on the ledger.</p>
+<div class="stack">
+<section class="panel"><div class="panel-head"><h2>Payoffs</h2><span class="code">Lines 504, 505, then 506+</span></div>
+ <div class="scroll"><table class="t"><thead><tr><th>Description</th><th>Payee</th><th class="m">Payoff amount</th><th>HUD line</th><th></th></tr></thead><tbody>
+ ${o.payoffs.map((p,i)=>`<tr><td class="w-desc">${inp(`payoffs.${i}.desc`)}</td><td class="w-pay">${sel(`payoffs.${i}.payeeId`,contactOpts())}</td>
+   <td class="w-amt">${inp(`payoffs.${i}.amount`,{num:true})}</td><td>${out(C=>`<span class="tag">${C.payLines[p.id]||'—'}</span>`)}</td>
+   <td><button class="x" data-act="delRow" data-list="payoffs" data-i="${i}" aria-label="Remove">×</button></td></tr>`).join('')}
+ </tbody></table></div><div class="row-actions"><button class="b" data-act="addPayoff">Add payoff</button></div>
+ <p class="note">Enter the good-through payoff from the lender's written statement, including per-diem interest to the disbursement date.</p></section>
+<section class="panel"><div class="panel-head"><h2>Credits & adjustments</h2><span class="code">100/200/400/500 series</span></div>
+ ${o.adjustments.length?`<div class="scroll"><table class="t"><thead><tr><th>Type</th><th>Description</th><th>Payee / payer</th><th class="m">Amount</th><th>HUD lines</th><th></th></tr></thead><tbody>
+ ${o.adjustments.map((a,i)=>`<tr><td>${sel(`adjustments.${i}.type`,Object.entries(ADJ_TYPES).map(([k,v])=>[k,v.label]),{re:true})}</td>
+  <td class="w-desc">${inp(`adjustments.${i}.desc`)}<div class="note">${esc((ADJ_TYPES[a.type]||{}).hint||'')}</div></td>
+  <td class="w-pay">${ADJ_TYPES[a.type]&&ADJ_TYPES[a.type].sides.length===1?sel(`adjustments.${i}.payeeId`,contactOpts()):'<span class="empty">Between buyer and seller</span>'}</td>
+  <td class="w-amt">${inp(`adjustments.${i}.amount`,{num:true})}</td><td>${out(C=>`<span class="tag">${(C.adjLines[a.id]||['—']).join(' / ')}</span>`)}</td>
+  <td><button class="x" data-act="delRow" data-list="adjustments" data-i="${i}" aria-label="Remove">×</button></td></tr>`).join('')}
+ </tbody></table></div>`:'<p class="empty">No credits or adjustments on this file.</p>'}
+ <div class="row-actions"><button class="b" data-act="addAdj">Add credit or adjustment</button></div></section>
+</div>`};
+
+PANELS.ledger=()=>{const o=O();return `
+<h1>Trust ledger</h1><p class="lede">Receipts and disbursements for this file's escrow account. Disbursements build themselves from the statement. The file can close only when total receipts minus total disbursements equals $0.00.</p>
+<div class="stack">
+${out(C=>`<div class="tiles">
+ <div class="tile"><div class="k">Expected receipts</div><div class="v">${money(C.expTotal)}</div></div>
+ <div class="tile"><div class="k">Recorded receipts</div><div class="v">${money(C.recTotal)}</div></div>
+ <div class="tile"><div class="k">Disbursements</div><div class="v">${money(C.disbTotal)}</div></div>
+ <div class="tile ${Math.abs(C.fileBal)<0.005?'ok':'bad'}"><div class="k">File balance</div><div class="v">${money(C.fileBal)}</div></div>
+ <div class="tile"><div class="k">Cash in trust (receipts − issued)</div><div class="v">${money(C.trustBal)}</div></div></div>`)}
+<section class="panel"><div class="panel-head"><h2>Expected receipts</h2><span class="code">From lines 201, 202, 303, 603</span></div>
+ ${out(C=>C.exp.length?`<div class="scroll"><table class="t"><thead><tr><th>Source</th><th>From</th><th>Basis</th><th class="m">Expected</th><th class="m">Recorded</th><th></th></tr></thead><tbody>
+ ${C.exp.map(e=>{const got=r2(o.receipts.filter(r=>r.kind===e.key).reduce((a,r)=>a+num(r.amount),0));const rem=r2(e.amt-got);
+   return `<tr><td>${esc(e.kind)}</td><td>${esc(e.from)}</td><td><span class="tag">${esc(e.ref)}</span></td><td class="m">${money(e.amt)}</td><td class="m">${money(got)}</td>
+   <td>${rem>0?`<button class="b small primary" data-act="recordExp" data-key="${e.key}">Receipt ${money(rem)}</button>`:'<span class="pill ok">Received</span>'}</td></tr>`}).join('')}
+ </tbody></table></div>${C.netted?`<p class="note">Lender fees of ${money(C.netted)} (${esc(C.nettedRefs.join('; '))}) are netted from the funding wire, so no check is cut to the lender.</p>`:''}`:'<p class="empty">No funds expected yet. Enter a sales price, loan or deposit on the Order screen.</p>')}
+</section>
+<section class="panel"><div class="panel-head"><h2>Recorded receipts</h2></div>
+ ${o.receipts.length?`<div class="scroll"><table class="t"><thead><tr><th>Date</th><th>Received from</th><th>Applies to</th><th>Method</th><th class="m">Amount</th><th>Memo</th><th></th></tr></thead><tbody>
+ ${o.receipts.map((r,i)=>`<tr><td>${inp(`receipts.${i}.date`,{type:'date'})}</td><td class="w-desc">${inp(`receipts.${i}.from`)}</td>
+  <td>${sel(`receipts.${i}.kind`,[['em','Earnest money'],['lender','Lender wire'],['buyer','Cash from borrower'],['seller','Cash from seller'],['other','Other'],...o.adjustments.map(a=>['adj:'+a.id,'Credit: '+(a.desc||'adjustment')])])}</td>
+  <td>${sel(`receipts.${i}.method`,[['Wire','Wire'],["Cashier's check","Cashier's check"],['ACH','ACH'],['Check','Check']])}</td>
+  <td class="w-amt">${inp(`receipts.${i}.amount`,{num:true})}</td><td class="w-desc">${inp(`receipts.${i}.memo`,{ph:'Fed ref / check no.'})}</td>
+  <td><button class="x" data-act="delRow" data-list="receipts" data-i="${i}" aria-label="Remove receipt">×</button></td></tr>`).join('')}
+ </tbody></table></div>`:'<p class="empty">No receipts recorded. Use a Receipt button above, or add one by hand.</p>'}
+ <div class="row-actions"><button class="b" data-act="addReceipt">Add receipt by hand</button></div></section>
+<section class="panel"><div class="panel-head"><h2>Disbursements</h2><span class="code">One item per payee, built from the statement</span></div>
+ ${out(C=>C.disb.length?`<div class="scroll"><table class="t"><thead><tr><th>Payee</th><th>Lines</th><th class="m">Amount</th><th>Status</th><th></th></tr></thead><tbody>
+ ${C.disb.map(d=>{const iss=o.issued[d.key];const mism=iss&&r2(iss.amount)!==d.amt;const ready=Math.abs(C.fileBal)<0.005;
+  return `<tr><td><b>${esc(d.name)}</b></td><td class="note">${esc(d.refs.join('; '))}</td><td class="m">${money(d.amt)}</td>
+  <td>${iss?`<span class="pill ${mism?'bad':'ok'}">${esc(iss.method)} ${esc(iss.no)}${mism?' · mismatch':''}</span>`:d.key==='nopayee'?'<span class="pill bad">Needs payee</span>':'<span class="pill neutral">Pending</span>'}</td>
+  <td><div class="row-actions">${iss?`<button class="b small" data-act="viewCheck" data-key="${d.key}">View</button><button class="b small danger" data-act="voidD" data-key="${d.key}">Void</button>`:
+   d.key==='nopayee'?'':`<button class="b small" data-act="issue" data-key="${d.key}" data-m="Check"${ready?'':' disabled title="Balance the file first"'}>Print check</button><button class="b small" data-act="issue" data-key="${d.key}" data-m="Wire"${ready?'':' disabled title="Balance the file first"'}>Queue wire</button>`}</div></td></tr>`}).join('')}
+ </tbody></table></div>`:'<p class="empty">No disbursements yet. They appear as soon as a charge, payoff or proceeds amount is on the statement.</p>')}
+ ${out(C=>Math.abs(C.fileBal)<0.005?'':`<p class="note">Checks and wires unlock when receipts equal disbursements. Current difference: ${money(C.fileBal)}.</p>`)}
+</section>
+${out(C=>checkView(o,C))}
+</div>`};
+
+function checkView(o,C){
+  if(!UI.check)return '';const iss=o.issued[UI.check];const d=C.disb.find(x=>x.key===UI.check);if(!iss)return '';
+  const agent=C.first('Settlement Agent');const agentName=agent&&agent.name?agent.name:'Settlement Agent';
+  return `<section class="panel"><div class="panel-head"><h2>${iss.method==='Wire'?'Outgoing wire':'Check'} ${esc(iss.no)}</h2><button class="b small" data-act="closeCheck">Close</button></div>
+  <div class="chequewrap"><div class="cheque">
+   <div class="r"><div><b>${esc(agentName)}</b><br>Escrow trust account<br>File ${esc(o.fileNo||'—')}</div><div style="text-align:right">No. <b>${esc(iss.no)}</b><br>Date ${esc(fmtDate(iss.date))}</div></div>
+   <div class="pay"><span>Pay to the order of</span><b style="flex:1">${esc(iss.name)}</b><span class="box">${money(iss.amount)}</span></div>
+   <div class="pay"><span style="flex:1">${esc(words(iss.amount))}</span></div>
+   <div class="r" style="margin-top:12px"><div>Memo: ${esc((d?d.refs:[]).join('; ')||'')}<br>Property: ${esc(propAddr(o)||'—')}</div><div style="border-top:1px solid #333;min-width:200px;text-align:center;padding-top:3px;margin-top:22px">Authorized signature</div></div>
+   ${iss.method==='Wire'?'<p style="margin:10px 0 0;font-size:12px"><b>Wire:</b> confirm beneficiary bank instructions by phone with a known number before release.</p>':`<div class="micr">⑆000000000⑆ 0000000000⑈ ${esc(iss.no)}</div>`}
+  </div></div></section>`;
+}
+
+/* ---------- HUD-1 ---------- */
+const cb=on=>`<span class="cb">${on?'☒':'☐'}</span>`;
+function hudAmt(C,n,always){const l=C.L[n];if(!l)return always?money(0):'';if(!l.amt&&!always)return '';return money(l.amt)}
+function hudCell(C,n){
+  const l=C.L[n];const ALWAYS=[101,103,120,201,202,220,301,302,303,401,420,502,520,601,602,603];
+  let d=l?l.desc:(DEF[n]||'');if(l&&l.pr)d+=` ${dstr(l.from)} to ${dstr(l.to)}`;else if([106,107,108,210,211,212,406,407,408,510,511,512].includes(n)&&!l)d+=' &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to';
+  if(n===303)d=`Cash ${cb(C.L[303].amt>=0)} From ${cb(C.L[303].amt<0)} To Borrower`;
+  if(n===603)d=`Cash ${cb(C.L[603].amt>=0)} To ${cb(C.L[603].amt<0)} From Seller`;
+  let a=hudAmt(C,n,ALWAYS.includes(n));if(n===303||n===603)a=money(Math.abs(C.L[n].amt));if((n===302||n===602)&&a)a=`(${a})`;
+  const bold=[120,220,303,420,520,603].includes(n);
+  return `<td class="ln">${n}.</td><td${bold?' style="font-weight:700"':''}>${n===303||n===603?d:esc(d).replace(/&amp;nbsp;/g,'&nbsp;')}</td><td class="amt"${bold?' style="font-weight:700"':''}>${a}</td>`;
+}
+function hudPage1(o,C){
+  const pair=(a,b)=>`<tr>${hudCell(C,a)}${hudCell(C,b)}</tr>`;const head=(a,b)=>`<tr class="sh"><td colspan="3">${a}</td><td colspan="3">${b}</td></tr>`;
+  let rows=head('100. Gross Amount Due from Borrower','400. Gross Amount Due to Seller');
+  for(let i=1;i<=5;i++)rows+=pair(100+i,400+i);rows+=head('Adjustment for items paid by seller in advance','Adjustment for items paid by seller in advance');
+  for(let i=6;i<=12;i++)rows+=pair(100+i,400+i);rows+=pair(120,420);
+  rows+=head('200. Amount Paid by or in Behalf of Borrower','500. Reductions In Amount Due to Seller');for(let i=1;i<=9;i++)rows+=pair(200+i,500+i);
+  rows+=head('Adjustments for items unpaid by seller','Adjustments for items unpaid by seller');for(let i=10;i<=19;i++)rows+=pair(200+i,500+i);rows+=pair(220,520);
+  rows+=head('300. Cash at Settlement from/to Borrower','600. Cash at Settlement to/from Seller');rows+=pair(301,601)+pair(302,602)+pair(303,603);
+  const party=role=>{const cs=o.contacts.filter(c=>c.role===role&&c.name);return cs.length?esc(cs.map(c=>c.name).join(' and '))+(cs[0].address?'<br>'+esc(cs[0].address):''):''};
+  const agent=C.first('Settlement Agent');
+  return `<div class="hud"><div class="hdr"><h3>A. Settlement Statement (HUD-1)</h3><span class="omb">OMB Approval No. 2502-0265</span></div>
+  <table><tr><td style="width:46%"><span class="lbl">B. Type of Loan</span>${LOAN_TYPES.map((t,i)=>`${i+1}. ${cb(o.loanType===t)} ${t}`).join(' &nbsp; ')}</td>
+   <td><span class="lbl">6. File Number</span>${esc(o.fileNo)}</td><td><span class="lbl">7. Loan Number</span>${esc(o.loanNo)}</td><td><span class="lbl">8. Mortgage Insurance Case Number</span>${esc(o.miCase)}</td></tr>
+   <tr><td colspan="4" class="note"><b>C. Note:</b> This form is furnished to give you a statement of actual settlement costs. Amounts paid to and by the settlement agent are shown. Items marked “(p.o.c.)” were paid outside the closing; they are shown here for informational purposes and are not included in the totals.</td></tr></table>
+  <table style="margin-top:-1px"><tr><td class="box" style="width:33%"><span class="lbl">D. Name & Address of Borrower</span>${party('Buyer')}</td><td class="box" style="width:34%"><span class="lbl">E. Name & Address of Seller</span>${party('Seller')}</td><td class="box"><span class="lbl">F. Name & Address of Lender</span>${party('Lender')}</td></tr>
+  <tr><td class="box"><span class="lbl">G. Property Location</span>${esc(propAddr(o))}${o.property.county?'<br>'+esc(o.property.county)+' County':''}${o.property.parcel?'<br>Parcel ID '+esc(o.property.parcel):''}</td>
+   <td class="box"><span class="lbl">H. Settlement Agent</span>${agent&&agent.name?esc(agent.name):''}<span class="lbl" style="margin-top:6px">Place of Settlement</span>${esc(o.placeOfSettlement)}</td>
+   <td class="box"><span class="lbl">I. Settlement Date</span>${esc(fmtDate(o.settlementDate))}${o.disbursementDate&&o.disbursementDate!==o.settlementDate?`<br>Disbursement ${esc(fmtDate(o.disbursementDate))}`:''}</td></tr></table>
+  <table style="margin-top:8px"><tr class="sh"><td colspan="3">J. Summary of Borrower’s Transaction</td><td colspan="3">K. Summary of Seller’s Transaction</td></tr>${rows}</table>
+  <p class="note" style="margin-top:6px">The Public Reporting Burden for this collection of information is estimated at 35 minutes per response for collecting, reviewing, and reporting the data. This agency may not collect this information, and you are not required to complete this form, unless it displays a currently valid OMB control number. No confidentiality is assured; this disclosure is mandatory. This is designed to provide the parties to a RESPA covered transaction with information during the settlement process.</p>
+  <div class="foot"><span>Previous edition are obsolete</span><span>Page 1 of 3</span><span>HUD-1</span></div></div>`;
+}
+function hudItemDesc(o,C,it){
+  let d=esc(it.desc||'');const pn=C.cname(it.payeeId);
+  if(it.calc==='reserve'){d+=` ${num(it.months)} months @ ${money(it.monthly)} per month`}
+  else if(it.line==='901'){const x=C.interest;d+=x.days?` from ${dstr(x.from)} to ${dstr(x.to)} @ ${money(x.perDiem)}/day`:' from &nbsp;&nbsp;&nbsp; to &nbsp;&nbsp;&nbsp; @ $ &nbsp;&nbsp; /day'}
+  else if(it.line==='902'){d+=` for ${esc(it.months||'')} months`}else if(it.line==='903'){d+=` for ${esc(it.years||'')} years`}
+  if(pn&&(it.custom||['804','805','806','807','902','903','1102','1103','1104'].includes(it.line)))d+=` to ${esc(pn)}`;
+  if(num(it.poc))d+=` (p.o.c. ${money(it.poc)} by ${({B:'Borrower',S:'Seller',L:'Lender',R:'Broker'})[it.pocBy]||'Borrower'})`;
+  if(it.gfe)d+=` <span class="gfe">(from GFE ${esc(it.gfe)})</span>`;
+  return d;
+}
+function hudPage2(o,C){
+  const R=(n,desc,inner,b,s,cls='')=>`<tr${cls?` class="${cls}"`:''}><td class="ln">${n}</td><td>${desc}</td><td class="inner">${inner}</td><td class="amt">${b}</td><td class="amt">${s}</td></tr>`;
+  const m=v=>num(v)?money(v):'';const cm=o.commission;
+  let rows=`<tr class="sh"><td colspan="2">700. Total Real Estate Broker Fees &nbsp; ${money(num(o.salesPrice))} × ${num(cm.rate)}% = ${money(C.commTotal)}<br><span style="font-weight:400">Division of commission (line 700) as follows:</span></td><td></td><td class="amt" style="font-size:9px;text-align:center">Paid From Borrower’s Funds at Settlement</td><td class="amt" style="font-size:9px;text-align:center">Paid From Seller’s Funds at Settlement</td></tr>`;
+  const sp=C.splits;const sDesc=x=>x?`${money(x.amt)} to ${esc(C.cname(x.contactId))}`:'$ &nbsp;&nbsp;&nbsp; to';
+  rows+=R('701.',sDesc(sp[0]),'','','');rows+=R('702.',sDesc(sp[1])+(sp.length>2?'; '+sp.slice(2).map(sDesc).join('; '):''),'','','');
+  rows+=R('703.','Commission paid at settlement'+(C.retained?` (${money(C.retained)} deposit retained by broker)`:''),'',money(C.commB),money(C.commS));
+  const inSec=(sec)=>o.items.filter(it=>num(it.line)>=sec&&num(it.line)<sec+100);
+  o.items.filter(it=>it.line>='704'&&num(it.line)<800).forEach(it=>{const v=C.it[it.id];rows+=R(it.line+'.',hudItemDesc(o,C,it),'',m(v.b),m(v.s))});
+  for(const [sec,title] of SECTIONS.slice(1)){
+    rows+=`<tr class="sh"><td colspan="5">${sec}. ${esc(title)}</td></tr>`;
+    const entries=[];const seen=new Set();
+    for(const it of inSec(sec)){
+      if(it.sub){if(seen.has(it.line))continue;seen.add(it.line);
+        const subs=o.items.filter(x=>x.line===it.line&&x.sub);const label={1202:'Deed',1204:'City/County tax/stamps',1205:'State tax/stamps'}[it.line];
+        const parts=subs.map(x=>{const v=C.it[x.id];return `${esc(x.desc)} ${money(v.b+v.s)}`}).join(' &nbsp; ');
+        const sS=subs.reduce((a,x)=>a+C.it[x.id].s,0);
+        entries.push({n:num(it.line),html:R(it.line+'.',it.line==='1202'?parts:`${label} &nbsp; ${parts}`,'','',m(sS))});continue}
+      const v=C.it[it.id];
+      if(!it.desc&&!v.b&&!v.s&&!num(it.poc)){entries.push({n:num(it.line),html:R(it.line+'.','','','','')});continue}
+      entries.push({n:num(it.line),html:R(it.line+'.',hudItemDesc(o,C,it),it.roll?m(v.b):'',it.roll?'':m(v.b),m(v.s))});
+    }
+    Object.keys(ROLLUPS).map(Number).filter(n=>n>=sec&&n<sec+100).forEach(n=>entries.push({n,html:R(n+'.',`${esc(ROLLUPS[n][0])} <span class="gfe">(from GFE ${ROLLUPS[n][1]})</span>`,'',money(C.roll[n]||0),'')}));
+    if(sec===1100){const ag=C.first('Settlement Agent'),uw=C.first('Title Underwriter');const prem=r2(o.items.filter(i=>i.calc==='ownerTitle'||i.calc==='lenderTitle').reduce((a,i)=>a+C.it[i.id].b+C.it[i.id].s,0));
+      const agp=r2(prem*num(o.settings.agentPct)/100);
+      entries.push({n:1105,html:R('1105.',`Lender’s title policy limit ${money(o.loanAmount)}`,'','','')});
+      entries.push({n:1106,html:R('1106.',`Owner’s title policy limit ${money(o.salesPrice)}`,'','','')});
+      entries.push({n:1107,html:R('1107.',`Agent’s portion of the total title insurance premium to ${esc(ag&&ag.name||'')}`,money(agp),'','')});
+      entries.push({n:1108,html:R('1108.',`Underwriter’s portion of the total title insurance premium to ${esc(uw&&uw.name||'')}`,money(r2(prem-agp)),'','')})}
+    entries.sort((a,b)=>a.n-b.n).forEach(e=>rows+=e.html);
+  }
+  rows+=R('1400.','<b>Total Settlement Charges</b> (enter on lines 103, Section J and 502, Section K)','',`<b>${money(C.B1400)}</b>`,`<b>${money(C.S1400)}</b>`,'tot');
+  return `<div class="hud"><div class="hdr"><h3>L. Settlement Charges</h3><span class="omb">File ${esc(o.fileNo)}</span></div><table>${rows}</table>
+  <div class="foot"><span>Previous edition are obsolete</span><span>Page 2 of 3</span><span>HUD-1</span></div></div>`;
+}
+function hudPage3(o,C){
+  const sig=o.contacts.filter(c=>(c.role==='Buyer'||c.role==='Seller')&&c.name);const ag=C.first('Settlement Agent');
+  return `<div class="hud"><div class="hdr"><h3>Certification</h3><span class="omb">File ${esc(o.fileNo)}</span></div>
+  <p>I have carefully reviewed the HUD-1 Settlement Statement and to the best of my knowledge and belief, it is a true and accurate statement of all receipts and disbursements made on my account or by me in this transaction. I further certify that I have received a copy of the HUD-1 Settlement Statement.</p>
+  <div class="sig">${(sig.length?sig:[{role:'Buyer',name:''},{role:'Seller',name:''}]).map(c=>`<div>${esc(c.role==='Buyer'?'Borrower':'Seller')}, ${esc(c.name)}</div>`).join('')}</div>
+  <p style="margin-top:28px">The HUD-1 Settlement Statement which I have prepared is a true and accurate account of this transaction. I have caused or will cause the funds to be disbursed in accordance with this statement.</p>
+  <div class="sig"><div>Settlement Agent${ag&&ag.name?', '+esc(ag.name):''}</div><div>Date</div></div>
+  <p class="note" style="margin-top:22px">WARNING: It is a crime to knowingly make false statements to the United States on this or any other similar form. Penalties upon conviction can include a fine and imprisonment. For details see: Title 18 U.S. Code Section 1001 and Section 1010.</p>
+  <div class="foot"><span>Previous edition are obsolete</span><span>Page 3 of 3</span><span>HUD-1</span></div></div>`;
+}
+const checklist=C=>`<ul class="checks">${C.checks.map(c=>`<li class="${c.ok?'ok':c.sev}"><span class="ic">${c.ok?'✓':c.sev==='error'?'✕':'!'}</span><span>${esc(c.label)}<small>${esc(c.detail)}</small></span></li>`).join('')}</ul>`;
+PANELS.hud=()=>{const o=O();return `
+<h1>HUD-1 statement</h1><p class="lede">Generated from the order, contacts, charges and ledger. Nothing here is typed by hand. Fix a number at its source screen and the statement updates.</p>
+<div class="stack">
+<section class="panel noprint"><div class="panel-head"><h2>Discrepancy check</h2>${out(C=>C.errors?`<span class="pill bad">${C.errors} blocking</span>`:`<span class="pill ok">Ready to close</span>`)}</div>
+ ${out(checklist)}
+ <div class="row-actions">${out(C=>o.status==='Closed'?`<button class="b" data-act="reopen">Reopen file</button>`:`<button class="b primary" data-act="closeFile"${C.errors?' disabled title="Clear the blocking items first"':''}>Close file</button>`)}
+ <span class="note">To print, open this file from the repository in a browser and use its Print command. The HUD pages print without the app chrome.</span></div>
+</section>
+${out(C=>`<div class="hudwrap">${hudPage1(o,C)}${hudPage2(o,C)}${hudPage3(o,C)}</div>`,'div')}
+</div>`};
+
+PANELS.codes=()=>{const o=O();return `
+<h1>Field codes & merge</h1><p class="lede">Every value on the file has a field code. Put codes in double braces in a template and the merge fills them from the live file, the same way the HUD and checks are produced.</p>
+<div class="stack">
+<section class="panel"><div class="panel-head"><h2>Document template</h2></div>
+ <label class="f"><span>Template text</span><textarea id="f-merge" data-bind="mergeTemplate" style="min-height:200px;font-family:var(--mono)">${esc(o.mergeTemplate)}</textarea></label>
+ <div class="panel-head"><h2>Merged output</h2><button class="b small" data-act="copyMerge">Copy text</button></div>
+ ${out(C=>`<pre class="merge" id="merge-out">${esc(merge(o,C))}</pre>`,'div')}
+</section>
+<section class="panel"><div class="panel-head"><h2>Field code reference</h2></div><div class="scroll">
+ ${out(C=>`<table class="t"><thead><tr><th>Code</th><th>Field</th><th>Current value</th></tr></thead><tbody>${FIELDS.map(([k,l,f])=>`<tr><td class="ln">{{${k}}}</td><td>${esc(l)}</td><td>${esc(f(o,C)||'—')}</td></tr>`).join('')}</tbody></table>`,'div')}
+</div></section></div>`};
+
+PANELS.settings=()=>{const o=O();const S=o.settings;return `
+<h1>Rates & settings</h1><p class="lede">Rate tables behind the calculated lines on this file. Defaults follow Florida's promulgated title rates and documentary stamp tax rates. Confirm each rate for your state, county and underwriter before relying on it.</p>
+<div class="stack">
+<section class="panel"><div class="panel-head"><h2>Title premium rate table</h2><span class="code">Lines 1103, 1104, 1107, 1108</span></div>
+ <div class="scroll"><table class="t"><thead><tr><th>Liability up to ($, 0 = no cap)</th><th class="m">Rate per $1,000</th><th></th></tr></thead><tbody>
+ ${S.tiers.map((t,i)=>`<tr><td class="w-amt">${inp(`settings.tiers.${i}.upTo`,{num:true,dec:0})}</td><td class="w-amt">${inp(`settings.tiers.${i}.rate`,{num:true})}</td><td><button class="x" data-act="delRow" data-list="settings.tiers" data-i="${i}" aria-label="Remove tier">×</button></td></tr>`).join('')}
+ </tbody></table></div>
+ <div class="row-actions"><button class="b" data-act="addTier">Add tier</button></div>
+ <div class="grid">${fld("Agent's share of premium %",inp('settings.agentPct',{num:true}))}${fld("Simultaneous lender's policy fee",inp('settings.simulFee',{num:true}))}
+  <div class="f" style="justify-content:flex-end">${chk('settings.simultaneous',"Lender's policy issued simultaneously")}</div></div>
+ ${out(C=>`<p class="note">On this file: owner's premium ${money(C.ownerPrem)}, lender's premium ${money(C.lenderPrem)}. Reissue credits and endorsements are not modeled; add them as lines 1109+.</p>`)}
+</section>
+<section class="panel"><div class="panel-head"><h2>Recording & transfer taxes</h2><span class="code">Lines 1204–1206</span></div><div class="grid">
+ ${fld('State deed stamps per $100',inp('settings.deedRate',{num:true}))}${fld('County deed tax per $100',inp('settings.countyDeedRate',{num:true}))}
+ ${fld('State mortgage stamps per $100',inp('settings.mtgRate',{num:true}))}${fld('County mortgage tax per $100',inp('settings.countyMtgRate',{num:true}))}
+ ${fld('Intangible tax % of loan',inp('settings.intangiblePct',{num:true,dec:3}))}</div>
+ <p class="note">Florida: deed stamps $0.70 per $100 statewide, $0.60 in Miami-Dade plus a $0.45 surtax when the property is not a single-family home. Mortgage stamps $0.35 per $100. Intangible tax 0.2%.</p></section>
+<section class="panel"><div class="panel-head"><h2>Calculation rules</h2></div><div class="grid">
+ ${fld('Per-diem interest basis',sel('settings.interestBasis',[['365','365 days'],['360','360 days']]))}
+ <div class="f" style="justify-content:flex-end">${chk('settings.lenderNets','Lender nets its fees from the funding wire')}</div></div></section>
+<section class="panel"><div class="panel-head"><h2>File data</h2></div>
+ <p class="note">Files are saved in this browser only. Copy a file's data to keep a backup or move it to another device, then paste it here to load it.</p>
+ <div class="row-actions"><button class="b" data-act="exportJson">Copy this file's data</button><button class="b" data-act="importJson">Load pasted data as a new file</button><button class="b" data-act="loadSample">Open a test scenario as a new file</button></div>
+ <textarea id="io" aria-label="File data" style="min-height:120px;font-family:var(--mono);font-size:12px">${esc(UI.io)}</textarea>
+ <p class="note" id="io-msg"></p></section>
+</div>`};
+
+/* ---------- shell ---------- */
+function render(){
+  OUT=[];const o=O();const tab=PANELS[UI.tab]?UI.tab:'order';let flow='';
+  const nav=TABS.map(([k,l,f])=>{const h=f!==flow?`<div class="flow">${f}</div>`:'';flow=f;return `${h}<button data-act="tab" data-tab="${k}" aria-current="${k===tab}">${l}${k==='hud'?out(C=>C.errors?`<span class="pill bad" style="padding:0 7px">${C.errors}</span>`:''):''}</button>`}).join('');
+  const locked=o.status==='Closed'&&!['hud','ledger','codes','settings'].includes(tab);
+  document.getElementById('app').innerHTML=`
+  <header class="top"><div class="brand"><b>The Hub</b><span>Closing desk</span></div>
+   <div class="filebar"><select id="order-switch" data-change="switchOrder" aria-label="Open file">${DB.orders.map(x=>`<option value="${x.id}"${x.id===o.id?' selected':''}>${esc(x.fileNo||'Untitled file')}${x.property.street?' · '+esc(x.property.street):''}${x.status==='Closed'?' (closed)':''}</option>`).join('')}</select>
+    <button class="b" data-act="newOrder">New file</button><button class="b" data-act="dupOrder">Duplicate</button>
+    ${UI.confirmDelete?`<span class="note">Delete this file permanently?</span><button class="b danger" data-act="doDelete">Delete</button><button class="b" data-act="cancelDelete">Keep</button>`:`<button class="b danger" data-act="askDelete">Delete</button>`}</div>
+   ${out(C=>`<span class="pill ${o.status==='Closed'?'ok':'neutral'}">${esc(o.status)}</span><span class="pill ${Math.abs(C.fileBal)<0.005?'ok':'bad'}">${Math.abs(C.fileBal)<0.005?'Balanced':'Out of balance'} ${money(C.fileBal)}</span>${C.errors?`<span class="pill warn">${C.errors} to fix</span>`:''}`,'div','statusbox')}
+  </header>
+  <div class="shell"><nav class="rail" aria-label="Modules">${nav}</nav>
+   <main>${o.status==='Closed'?'<div class="banner closed">This file is closed. Reopen it from the HUD-1 screen to make changes.</div>':''}<fieldset class="lock"${locked?' disabled':''}>${PANELS[tab]()}</fieldset></main></div>`;
+  refresh();
+}
+function refresh(){
+  const C=compute(O());
+  document.querySelectorAll('[data-out]').forEach(el=>{const f=OUT[+el.dataset.out];if(!f)return;const h=f(C);if(el.innerHTML!==h)el.innerHTML=h});
+}
+function apply(el){let v=el.type==='checkbox'?el.checked:el.value;if(el.dataset.num)v=num(v);setPath(O(),el.dataset.bind,v);save()}
+const listAt=p=>getPath(O(),p);
+const nextLine=sec=>{const o=O();let mx=sec+3;o.items.forEach(it=>{const n=num(it.line);if(n>=sec&&n<sec+100)mx=Math.max(mx,n)});return Math.min(mx+1,sec+99)};
+const ACT={
+  tab(el){UI.tab=el.dataset.tab;UI.confirmDelete=false;try{history.replaceState(null,'','#'+UI.tab)}catch(e){}render();window.scrollTo(0,0)},
+  newOrder(){const o=newOrder();DB.orders.push(o);DB.current=o.id;UI.tab='order';save();render()},
+  dupOrder(){const c=JSON.parse(JSON.stringify(O()));c.id=uid();c.fileNo=(c.fileNo||'Untitled')+' copy';c.status='Open';c.receipts=[];c.issued={};DB.orders.push(c);DB.current=c.id;save();render()},
+  askDelete(){UI.confirmDelete=true;render()},cancelDelete(){UI.confirmDelete=false;render()},
+  doDelete(){DB.orders=DB.orders.filter(x=>x.id!==DB.current);if(!DB.orders.length)DB.orders.push(newOrder());DB.current=DB.orders[0].id;UI.confirmDelete=false;save();render()},
+  switchOrder(el){DB.current=el.value;UI.check=null;save();render()},
+  addContact(){const role=document.getElementById('new-role').value;O().contacts.push({id:uid(),role,name:'',address:'',phone:'',email:'',ref:''});save();render()},
+  delContact(el){const o=O(),id=el.dataset.id;o.contacts=o.contacts.filter(c=>c.id!==id);
+    o.items.forEach(i=>{if(i.payeeId===id)i.payeeId=''});o.payoffs.forEach(p=>{if(p.payeeId===id)p.payeeId=''});o.adjustments.forEach(a=>{if(a.payeeId===id)a.payeeId=''});
+    o.commission.splits.forEach(s=>{if(s.contactId===id)s.contactId=''});if(o.earnestHolder===id)o.earnestHolder='agent';save();render()},
+  delRow(el){listAt(el.dataset.list).splice(+el.dataset.i,1);save();render()},
+  addProration(){O().prorations.push({id:uid(),kind:'other',label:'',annual:0,from:'',to:'',status:'paid',note:''});save();render()},
+  addLine(el){const sec=+el.dataset.sec;const o=O();const line=String(nextLine(sec));
+    const base={id:uid(),line,desc:'',payeeId:'',b:0,s:0,poc:0,pocBy:'B',custom:true};
+    if(sec===1000)Object.assign(base,{roll:'1001',calc:'reserve',party:'B',months:0,monthly:0,bOnly:true,payeeId:(o.contacts.find(c=>c.role==='Lender')||{}).id||''});
+    o.items.push(base);save();render()},
+  addSplit(){O().commission.splits.push({id:uid(),contactId:'',pct:0});save();render()},
+  addPayoff(){O().payoffs.push({id:uid(),desc:'Payoff of mortgage loan',payeeId:'',amount:0});save();render()},
+  addAdj(){O().adjustments.push({id:uid(),type:'sellerCredit',desc:'',payeeId:'',amount:0});save();render()},
+  addTier(){O().settings.tiers.push({upTo:0,rate:0});save();render()},
+  recordExp(el){const o=O(),C=compute(o);const e=C.exp.find(x=>x.key===el.dataset.key);if(!e)return;
+    const got=o.receipts.filter(r=>r.kind===e.key).reduce((a,r)=>a+num(r.amount),0);
+    o.receipts.push({id:uid(),date:today(),from:e.from,kind:e.key,method:'Wire',amount:r2(e.amt-got),memo:''});save();render()},
+  addReceipt(){O().receipts.push({id:uid(),date:today(),from:'',kind:'other',method:'Wire',amount:0,memo:''});save();render()},
+  issue(el){const o=O(),C=compute(o);const d=C.disb.find(x=>x.key===el.dataset.key);if(!d||Math.abs(C.fileBal)>=0.005)return;const m=el.dataset.m;
+    const no=m==='Check'?String(o.nextCheck++):'W-'+String(o.nextWire++).padStart(3,'0');
+    o.issued[d.key]={no,method:m,date:today(),amount:d.amt,name:d.name};UI.check=d.key;save();render()},
+  voidD(el){delete O().issued[el.dataset.key];if(UI.check===el.dataset.key)UI.check=null;save();render()},
+  viewCheck(el){UI.check=el.dataset.key;render()},closeCheck(){UI.check=null;render()},
+  closeFile(){const o=O();if(compute(o).errors)return;o.status='Closed';save();render()},
+  reopen(){O().status='Open';save();render()},
+  copyMerge(){const t=document.getElementById('merge-out').textContent;copyText(t,document.getElementById('merge-out'))},
+  exportJson(){const ta=document.getElementById('io');UI.io=JSON.stringify(O(),null,1);ta.value=UI.io;copyText(UI.io,ta);msg('File data is in the box below and copied to your clipboard if your browser allowed it.')},
+  importJson(){const ta=document.getElementById('io');try{const d=JSON.parse(ta.value);
+      if(!d||!Array.isArray(d.items)||!Array.isArray(d.contacts)||!d.settings)throw new Error('missing parts');
+      d.id=uid();d.receipts=d.receipts||[];d.issued=d.issued||{};DB.orders.push(d);DB.current=d.id;UI.io='';save();UI.tab='order';render()}
+    catch(e){msg('That text is not a closing-desk file. Paste the full text produced by "Copy this file\'s data".')}},
+  loadSample(){const o=sampleOrder();DB.orders.push(o);DB.current=o.id;UI.tab='hud';save();render()},
+};
+function msg(t){const m=document.getElementById('io-msg');if(m)m.textContent=t}
+function copyText(t,el){try{navigator.clipboard.writeText(t).catch(()=>selectEl(el))}catch(e){selectEl(el)}}
+function selectEl(el){if(!el)return;if(el.select){el.select();return}const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r)}
+
+document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el||el.disabled)return;const f=ACT[el.dataset.act];if(f){e.preventDefault();f(el)}});
+document.addEventListener('input',e=>{const el=e.target;if(!el.dataset||!el.dataset.bind||el.dataset.re)return;apply(el);refresh()});
+document.addEventListener('change',e=>{const el=e.target;
+  if(el.dataset.bind){apply(el);if(el.dataset.re)render();else{if(el.dataset.num)el.value=fmtIn(getPath(O(),el.dataset.bind),+el.dataset.num);refresh()}}
+  else if(el.dataset.change&&ACT[el.dataset.change])ACT[el.dataset.change](el)});
+document.addEventListener('focusin',e=>{if(e.target.matches&&e.target.matches('input.num'))setTimeout(()=>{try{e.target.select()}catch(x){}},0)});
+
+(function boot(){const h=(location.hash||'').slice(1);if(PANELS[h])UI.tab=h;render()})();
+</script>
