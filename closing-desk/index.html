@@ -144,6 +144,7 @@ table.t .w-desc{min-width:200px} table.t .w-pay{min-width:180px} table.t .w-amt{
 .tag.auto{background:var(--accent-soft);color:var(--accent)}
 .mini{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .mini input{width:84px}
+.mini input[type=checkbox]{width:auto;padding:0}
 .kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:13px}
 .kv dt{color:var(--muted)} .kv dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .kv .total{font-weight:700;color:var(--fg)}
@@ -248,6 +249,13 @@ tr.hl td{background:var(--accent-soft)}
 .deedpaper .dtop{position:relative;border-bottom:1px dashed #9aa8bb;background:repeating-linear-gradient(135deg,rgba(28,77,140,.04) 0 8px,transparent 8px 16px)}
 .deedpaper .dtop::after{content:"3 in. top margin reserved for the Register of Deeds";position:absolute;bottom:6px;left:0;right:0;text-align:center;font:11px var(--sans);color:#6b7686}
 .deedpaper .dexec{outline:1px dashed #c9d2dd;outline-offset:6px}
+.stickyhead{position:sticky;top:calc(var(--topbar-h,64px) + env(safe-area-inset-top,0px));max-height:calc(100dvh - var(--topbar-h,64px) - 100px);overflow:auto;background:var(--surface)}
+.stickyhead thead th{position:sticky;top:0;z-index:4;background:var(--surface);box-shadow:inset 0 -2px 0 var(--line)}
+.t th.col-b,.t th.col-s{font-size:12px}
+.t th.col-b{color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.t th.col-s{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--surface))}
+.t td.cb{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.t td.cs{background:color-mix(in srgb,var(--warn) 6%,transparent)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -313,7 +321,9 @@ function norm(o){if(!o)return o;if(!o.openedDate)o.openedDate=o.created||today()
   if(!Array.isArray(o.milestones))o.milestones=MS_TEMPLATE.map(newMs);
   else MS_TEMPLATE.forEach(t=>{if(!o.milestones.some(m=>m.key===t.key))o.milestones.push(newMs(t))});
   if(!Array.isArray(o.audit))o.audit=[];
-  o.deed=Object.assign(deedDefaults(),o.deed||{});o.closeout=Object.assign(coDefaults(),o.closeout||{});if(!Array.isArray(o.labels))o.labels=[];
+  o.deed=Object.assign(deedDefaults(),o.deed||{});
+  if(o.deed.grantorType&&o.deed.grantorType!=='individual'&&!o.deed.migrated){let sc=o.contacts.find(c=>c.role==='Seller');if(!sc){sc={id:uid(),role:'Seller',name:'',address:'',phone:'',email:'',ref:''};o.contacts.push(sc)}
+    Object.assign(sc,{name:o.deed.entityName||sc.name,entityType:o.deed.grantorType,entityState:o.deed.entityState||'',signer:o.deed.signer||'',signerTitle:o.deed.signerTitle||''});o.deed.grantorType='individual';o.deed.migrated=true}o.closeout=Object.assign(coDefaults(),o.closeout||{});if(!Array.isArray(o.labels))o.labels=[];
   if(!o.tax||typeof o.tax!=='object')o.tax={state:'',locality:'',ptype:'sfr',primary:true,payer:{},addOns:[],confirmed:false};if(!o.tax.payer)o.tax.payer={};if(!Array.isArray(o.tax.addOns))o.tax.addOns=[];
   const MIG={countyDeed:'taxLocalDeed',countyMtg:'taxLocalMtg',deedStamps:'taxStateDeed',mtgStamps:'taxStateMtg',intangible:'taxOther'};
   o.items.forEach(i=>{if(MIG[i.calc]){i.calc=MIG[i.calc];if(i.line==='1206')i.desc='Other recording taxes (intangible, note taxes)'}});
@@ -348,6 +358,7 @@ const FIELD_TOP={fileNo:'File number',loanNo:'Loan number',miCase:'MI case numbe
   earnestMoney:'Earnest money',earnestHolder:'Deposit holder',openedDate:'Open date',assignedTo:'Assigned paralegal',attorney:'Closing attorney'};
 const SUBF={b:'borrower amount',s:'seller amount',poc:'P.O.C. amount',pocBy:'P.O.C. paid by',payeeId:'payee',desc:'description',party:'paid by',override:'override',months:'months',monthly:'monthly amount',years:'years',
   amount:'amount',annual:'annual amount',from:'period from',to:'period to',status:'status',kind:'type',label:'label',type:'type',pct:'share %',contactId:'broker',date:'date',method:'method',memo:'memo',
+  entityType:'signs as',entityState:'state of formation',signer:'signer',signerTitle:'signer title',authority:'signing authority reviewed',
   vestedOwner:'vested owner',priorBook:'prior deed book',priorPage:'prior deed page',priorDate:'prior deed recorded date',priorInstrument:'prior instrument',platBook:'plat book',platPage:'plat page',
   parcel:'parcel ID',county:'county',legal:'legal description',city:'city',zip:'ZIP',state:'state',
   due:'due date',requested:'requested date',received:'received date',note:'note',docId:'document',name:'name',address:'address',phone:'phone',email:'email',ref:'reference',role:'role'};
@@ -907,12 +918,12 @@ PANELS.order=()=>{const o=O();return `
 
 PANELS.contacts=()=>{const o=O();return `
 <h1>Contacts</h1><p class="lede">Every party on the file. Payee dropdowns on charges, payoffs and the ledger pull from this list, so a name typed here flows to every check and HUD line. Start typing a name that is on another file and pick it to copy that contact’s details from the directory.</p>
-<datalist id="crm-list">${directory().map(e=>`<option value="${esc(e.name)}">${esc([...e.roles].join(', '))}</option>`).join('')}</datalist>
+${titleList()}<datalist id="crm-list">${directory().map(e=>`<option value="${esc(e.name)}">${esc([...e.roles].join(', '))}</option>`).join('')}</datalist>
 <section class="panel">
  ${o.contacts.map((c,i)=>`<div class="contact">
   ${fld('Role',sel(`contacts.${i}.role`,ROLES.map(r=>[r,r]),{re:true}))}
   ${fld('Name',inp(`contacts.${i}.name`,{attrs:'list="crm-list" autocomplete="off"'}))}${fld('Address',inp(`contacts.${i}.address`))}${fld('Phone',inp(`contacts.${i}.phone`))}
-  ${fld('Email',inp(`contacts.${i}.email`))}${fld('Tax ID / account / ref',inp(`contacts.${i}.ref`))}
+  ${fld('Email',inp(`contacts.${i}.email`))}${fld('Tax ID / account / ref',inp(`contacts.${i}.ref`))}${c.role==='Seller'||c.role==='Buyer'?partyFields(c,i):''}
   <button class="x" data-act="delContact" data-id="${c.id}" aria-label="Remove contact" title="Remove contact">×</button>
   ${out(C=>{const d=C.disb.find(x=>x.payeeId===c.id);const n=o.items.filter(it=>it.payeeId===c.id).length;
      const others=c.name?directory().find(e=>e.key===c.name.trim().toLowerCase()):null;const n2=others?others.files.filter(f=>f.o!==o).length:0;
@@ -964,7 +975,7 @@ function itemRow(it,i){
   if(it.roll)opts+=` <span class="tag" title="Borrower amount rolls into line ${it.roll}">→ ${it.roll}</span>`;
   if(it.gfe)opts+=` <span class="tag">GFE ${esc(it.gfe)}</span>`;
   return `<tr><td class="ln">${esc(it.line)}</td><td class="w-desc">${desc}</td><td class="w-pay">${sel(`${p}.payeeId`,contactOpts())}</td>
-  <td class="w-amt">${cell('b')}</td><td class="w-amt">${it.bOnly?'<span class="empty">—</span>':cell('s')}</td>
+  <td class="w-amt cb">${cell('b')}</td><td class="w-amt cs">${it.bOnly?'<span class="empty">—</span>':cell('s')}</td>
   <td class="w-amt"><div class="mini" style="flex-wrap:nowrap">${inp(`${p}.poc`,{num:true})}${sel(`${p}.pocBy`,[['B','B'],['S','S'],['L','L'],['R','Br']])}</div></td>
   <td><div class="mini">${opts}</div></td>
   <td>${it.custom?`<button class="x" data-act="delRow" data-list="items" data-i="${i}" aria-label="Remove line">×</button>`:''}</td></tr>`;
@@ -973,7 +984,7 @@ PANELS.charges=()=>{const o=O();const cm=o.commission;
   const rows=SECTIONS.slice(1).map(([sec,title])=>{
     const its=o.items.map((it,i)=>({it,i})).filter(x=>num(x.it.line)>=sec&&num(x.it.line)<sec+100);
     const rolls=Object.keys(ROLLUPS).map(Number).filter(n=>n>=sec&&n<sec+100);
-    const list=[...its.map(x=>({n:num(x.it.line),html:itemRow(x.it,x.i)})),...rolls.map(n=>({n,html:`<tr class="rollup"><td class="ln">${n}</td><td>${esc(ROLLUPS[n][0])}</td><td></td><td class="m">${out(C=>money(C.roll[n]||0))}</td><td></td><td></td><td><span class="tag">GFE ${ROLLUPS[n][1]} · total</span></td><td></td></tr>`}))]
+    const list=[...its.map(x=>({n:num(x.it.line),html:itemRow(x.it,x.i)})),...rolls.map(n=>({n,html:`<tr class="rollup"><td class="ln">${n}</td><td>${esc(ROLLUPS[n][0])}</td><td></td><td class="m cb">${out(C=>money(C.roll[n]||0))}</td><td class="cs"></td><td></td><td><span class="tag">GFE ${ROLLUPS[n][1]} · total</span></td><td></td></tr>`}))]
       .sort((a,b)=>a.n-b.n);
     return `<tr class="sec"><td class="ln">${sec}</td><td colspan="6">${esc(title)}</td><td><button class="b small" data-act="addLine" data-sec="${sec}">Add line</button></td></tr>${list.map(x=>x.html).join('')}`}).join('');
   return `
@@ -989,12 +1000,12 @@ PANELS.charges=()=>{const o=O();const cm=o.commission;
  </tbody></table></div>
  <div class="row-actions"><button class="b" data-act="addSplit">Add broker split</button></div>
 </section>
-<section class="panel"><div class="scroll"><table class="t">
- <thead><tr><th>Line</th><th>Description</th><th>Payee</th><th class="m">Borrower</th><th class="m">Seller</th><th class="m">P.O.C. / by</th><th>Rules</th><th></th></tr></thead>
+<section class="panel"><p class="note">P.O.C. amounts were paid outside closing. They print on the HUD for information and stay out of totals and the ledger. A borrower amount on a line marked → rolls into that total line, as the 2010 HUD-1 requires.</p><div class="scroll stickyhead" id="charges-grid"><table class="t">
+ <thead><tr><th>Line</th><th>Description</th><th>Payee</th><th class="m col-b">Borrower</th><th class="m col-s">Seller</th><th class="m">P.O.C. / by</th><th>Rules</th><th></th></tr></thead>
  <tbody>${rows}
- <tr class="rollup"><td class="ln">1400</td><td>Total settlement charges (enter on lines 103 and 502)</td><td></td><td class="m">${out(C=>money(C.B1400))}</td><td class="m">${out(C=>money(C.S1400))}</td><td></td><td></td><td></td></tr>
+ <tr class="rollup"><td class="ln">1400</td><td>Total settlement charges (enter on lines 103 and 502)</td><td></td><td class="m cb">${out(C=>money(C.B1400))}</td><td class="m cs">${out(C=>money(C.S1400))}</td><td></td><td></td><td></td></tr>
  </tbody></table></div>
- <p class="note">P.O.C. amounts were paid outside closing. They print on the HUD for information and stay out of totals and the ledger. A borrower amount on a line marked → rolls into that total line, as the 2010 HUD-1 requires.</p>
+
 </section></div>`};
 
 PANELS.payoffs=()=>{const o=O();return `
@@ -1121,13 +1132,30 @@ const GRANT_TPL='That said Grantor has remained and released and by these presen
 const EXCEPT_DEFAULT='All such valid and enforceable easements, restrictions and rights of way of record and the lien of ad valorem taxes for the current year which the grantee herein assumes and agrees to pay.';
 function deedDefaults(){return{granting:'standard',date:'',preparedBy:'',returnTo:'',brief:'',city:'',township:'',primary:'',vesting:'',marital:'',spouse:'',
   grantorType:'individual',entityName:'',entityState:'North Carolina',signer:'',signerTitle:'',ackState:'',ackCounty:'',ackMode:'each',ack:{},exceptions:EXCEPT_DEFAULT,version:0,generated:''}}
+/* Property state, as a full name: from the property address, falling back to the state picked on Transfer & excise taxes. */
+function deedState(o){const raw=String(o.property.state||'').trim();const code=raw.toUpperCase();
+  if(TAX_RULES[code])return TAX_RULES[code].name;const byName=Object.values(TAX_RULES).find(r=>r.name.toLowerCase()===raw.toLowerCase());if(byName)return byName.name;
+  const t=taxState(o);return t?TAX_RULES[t].name:raw}
 const deedExcise=C=>{const t=C.tax.slots;return r2(t.stateDeed.b+t.stateDeed.s+t.localDeed.b+t.localDeed.s)};
 const nameSet=s=>String(s||'').toLowerCase().split(/\s*(?:,|&|\band\b)\s*/).map(x=>x.replace(/[^a-z0-9 ]/g,'').trim()).filter(Boolean).sort().join('|');
-const deedSigners=o=>[...o.contacts.filter(c=>c.role==='Seller'&&c.name).map(c=>({key:c.id,name:c.name})),...(o.deed.spouse?[{key:'spouse',name:o.deed.spouse}]:[])];
+const PTYPES=[['individual','Individual'],['llc','LLC'],['corp','Corporation'],['trust','Trust'],['partnership','Partnership']];
+const SIGNER_TITLES=['Member','Manager','Member-Manager','Managing Member','Authorized Signatory','President','Vice President','Secretary','Trustee','General Partner'];
+const isEnt=c=>!!(c&&c.entityType&&c.entityType!=='individual');
+const entDesc=c=>`${esc(c.name)}, a ${esc(c.entityState||'_______')} ${ENTITY[c.entityType]||'entity'}`;
+const deedSigners=o=>{const ss=o.contacts.filter(c=>c.role==='Seller'&&c.name);return [...ss.map(c=>({key:c.id,name:c.name,c})),...(o.deed.spouse&&ss.some(c=>!isEnt(c))?[{key:'spouse',name:o.deed.spouse,c:null}]:[])]};
+const titleList=()=>`<datalist id="signer-titles">${SIGNER_TITLES.map(t=>`<option value="${t}">`).join('')}</datalist>`;
+const partyFields=(c,i)=>`${fld('Signs as',sel(`contacts.${i}.entityType`,PTYPES,{re:true}))}${isEnt(c)?`${fld('State of formation',inp(`contacts.${i}.entityState`,{ph:'e.g. North Carolina'}))}
+  ${fld(c.entityType==='llc'?'Member / manager signing':c.entityType==='trust'?'Trustee signing':'Officer signing',inp(`contacts.${i}.signer`,{ph:'Full name of the person signing'}))}
+  ${fld('Signer title',inp(`contacts.${i}.signerTitle`,{ph:c.entityType==='llc'?'e.g. Member-Manager':'e.g. President',attrs:'list="signer-titles"'}))}
+  <div class="f" style="justify-content:flex-end">${chk(`contacts.${i}.authority`,'Authority to sign reviewed')}</div>`:''}`;
 function deedChecks(o,C){const d=o.deed,P=o.property,out=[];const add=(sev,label,detail,focus)=>out.push({sev,label,detail,focus});
   const sellers=o.contacts.filter(c=>c.role==='Seller'&&c.name),buyers=o.contacts.filter(c=>c.role==='Buyer'&&c.name);
-  if(d.grantorType==='individual'&&!sellers.length)add('error','Grantor named','Add the seller(s) on Contacts','');
-  if(d.grantorType!=='individual'&&!d.entityName)add('error','Grantor entity named','Enter the entity name below','f-deed-entityName');
+  if(!sellers.length)add('error','Grantor named','Add the seller(s) on Contacts','');
+  o.contacts.forEach((c,i)=>{if(!c.name||!isEnt(c)||(c.role!=='Seller'&&c.role!=='Buyer'))return;const g=c.role==='Seller';
+    if(g&&!c.signer)add('error',`Signer named for ${c.name}`,`Enter the ${c.entityType==='llc'?'member or manager':'officer or trustee'} signing for the ${ENTITY[c.entityType]}`,`f-contacts-${i}-signer`);
+    if(g&&!c.signerTitle)add('warn',`Signer title for ${c.name}`,'State the signer’s capacity, e.g. Member-Manager',`f-contacts-${i}-signerTitle`);
+    if(!c.entityState)add('warn',`State of formation for ${c.name}`,`The deed describes ${c.role==='Seller'?'the grantor':'the grantee'} as “a [state] ${ENTITY[c.entityType]}”`,`f-contacts-${i}-entityState`);
+    if(g&&!c.authority)add('warn',`Authority to sign for ${c.name}`,'Review the operating agreement, resolution or trust certification and tick “Authority to sign reviewed”',`f-contacts-${i}-authority`)});
   if(!buyers.length)add('error','Grantee named','Add the buyer(s) on Contacts','');
   if(String(P.legal||'').trim().length<20)add('error','Legal description entered','Enter the full legal description on Order & property','f-legal');
   if(!P.county)add('error','County entered','Enter the county on Order & property','f-property-county');
@@ -1135,21 +1163,22 @@ function deedChecks(o,C){const d=o.deed,P=o.property,out=[];const add=(sev,label
   if(!P.parcel)add('warn','Parcel identifier entered','Enter the parcel ID on Order & property','f-property-parcel');
   if(!d.preparedBy&&!firmLine())add('error','Preparer named','North Carolina requires the name of the person who prepared the deed','f-deed-preparedBy');
   if(!d.primary)add('warn','Primary residence box answered','Choose whether the property includes a grantor’s primary residence','f-deed-primary');
-  const vested=P.vestedOwner||'',grantor=d.grantorType==='individual'?sellers.map(c=>c.name).join(' and '):d.entityName;
+  const vested=P.vestedOwner||'',grantor=sellers.map(c=>c.name).join(' and ');
   if(!vested)add('warn','Vested owner of record entered','Enter the owner of record from the title search to compare against the grantor','f-property-vestedOwner');
   else if(nameSet(vested)!==nameSet(grantor))add('error','Grantor matches owner of record',`Title shows “${vested}”; the deed names “${grantor||'no grantor'}”. Resolve the chain of title before signing.`,'f-property-vestedOwner');
-  if(d.grantorType==='individual'&&!d.marital)add('warn','Grantor marital status stated','North Carolina deeds normally state marital status; a spouse must join to release marital rights','f-deed-marital');
-  if(String(P.state||'').trim().toUpperCase()!=='NC'&&taxState(o)!=='NC')add('warn','Property is in North Carolina','This form is a North Carolina deed. Use the correct state form for other properties.','f-property-state');
+  if(sellers.some(c=>!isEnt(c))&&!d.marital)add('warn','Grantor marital status stated','North Carolina deeds normally state marital status; a spouse must join to release marital rights','f-deed-marital');
+  const dst=deedState(o);if(!dst)add('error','Property state entered','The deed names the state where the property sits. Enter it on Order & property','f-property-state');
+  else if(dst!=='North Carolina')add('warn',`Deed form suits ${dst}`,`The wording follows North Carolina practice. Have ${dst} counsel confirm the granting clause, covenants, acknowledgment and recording margins.`,'f-property-state');
   if(num(o.salesPrice)>0&&!deedExcise(C))add('warn','Excise tax calculated','No deed tax was calculated. Check Transfer & excise taxes','');
   if(d.granting==='template')add('error','Granting clause matches a warranty deed','The uploaded wording (“remise, release … all right, title, claim and interest”) is quitclaim language inside a general warranty deed. Use the warranty clause unless counsel approves.','f-deed-granting');
   return out}
 function deedDoc(o,C){const d=o.deed,P=o.property;
   const B=(v,w=16)=>v?esc(v):`<span class="blank" style="min-width:${w}ch"></span>`;
   const sellers=o.contacts.filter(c=>c.role==='Seller'&&c.name),buyers=o.contacts.filter(c=>c.role==='Buyer'&&c.name);
-  const ent=d.grantorType!=='individual';
-  const grantor=ent?`${esc(d.entityName||'')}${d.entityName?`, a ${esc(d.entityState||'')} ${ENTITY[d.grantorType]||'entity'}`:''}`:esc(sellers.map(c=>c.name).join(' and '))+(d.marital?`, ${esc(d.marital)}`:'')+(d.spouse?`, and spouse, ${esc(d.spouse)}`:'');
-  const grantee=esc(buyers.map(c=>c.name).join(' and '))+esc(VESTING[d.vesting]||'');
-  const gAddr=ent?'':esc((sellers[0]&&sellers[0].address)||'');const bAddr=esc(d.returnTo||(buyers[0]&&buyers[0].address)||'');
+  const indS=sellers.filter(c=>!isEnt(c)),entS=sellers.filter(isEnt);
+  const grantor=[indS.length?esc(indS.map(c=>c.name).join(' and '))+(d.marital?`, ${esc(d.marital)}`:'')+(d.spouse?`, and spouse, ${esc(d.spouse)}`:''):'',...entS.map(entDesc)].filter(Boolean).join('; and ');
+  const grantee=buyers.map(c=>isEnt(c)?entDesc(c):esc(c.name)).join(' and ')+esc(buyers.every(c=>!isEnt(c))?(VESTING[d.vesting]||''):'');
+  const gAddr=esc((sellers[0]&&sellers[0].address)||'');const bAddr=esc(d.returnTo||(buyers[0]&&buyers[0].address)||'');
   const dd=dnum(d.date||o.settlementDate);let dateTxt='____ day of ______________, 20____';
   if(dd!=null){const x=new Date(dd*864e5);dateTxt=`${ordinal(x.getUTCDate())} day of ${MONTHS[x.getUTCMonth()]}, ${x.getUTCFullYear()}`}
   const where=[d.city?`the City of ${esc(d.city)}`:'',d.township?`${esc(d.township)} Township`:'',`${B(P.county,12)} County`].filter(Boolean).join(', ');
@@ -1158,7 +1187,7 @@ function deedDoc(o,C){const d=o.deed,P=o.property;
   const deriv=`The property hereinabove described was acquired by Grantor by instrument recorded in Book ${B(P.priorBook,6)} at Page ${B(P.priorPage,6)}${P.county?`, ${esc(P.county)} County Registry`:''}${P.priorDate?`, recorded ${esc(fmtDate(P.priorDate))}`:''}${P.priorInstrument?` (${esc(P.priorInstrument)})`:''}.`;
   const plat=P.platBook||P.platPage?`<p>A map showing the above described property is recorded in Plat Book ${B(P.platBook,6)} at Page ${B(P.platPage,6)}.</p>`:'';
   const BL=w=>`<span class="blank" style="min-width:${w}ch"></span>`;
-  const ackStD=d.ackState||(String(P.state||'').toUpperCase()==='NC'?'North Carolina':P.state||''),ackCoD=d.ackCounty||P.county||'';
+  const stName=deedState(o);const ackStD=d.ackState||stName,ackCoD=d.ackCounty||P.county||'';
   const inWit='<p>IN WITNESS WHEREOF, the Grantor has duly executed the foregoing as of the day and year first above written.</p>';
   const notary=(who,key,body)=>{const a=(d.ack&&d.ack[key])||{};const st=esc(a.state||ackStD),co=esc(a.county||ackCoD);
     return `<p class="dstate">STATE OF ${st||BL(14)} &nbsp;&nbsp;&nbsp; COUNTY OF ${co||BL(14)}</p>
@@ -1167,13 +1196,17 @@ function deedDoc(o,C){const d=o.deed,P=o.property;
     <div class="dsigs"><div class="dsig"><div class="dl">${BL(30)}</div><div>Notary Public &nbsp; Printed name: ${BL(18)}</div><div>My commission expires: ${BL(14)} &nbsp; (Official seal)</div></div></div>`};
   const sigLine=n=>`<div class="dsig"><div class="dl">${BL(34)} (SEAL)</div><div>${n?esc(n):'Printed name'}</div></div>`;
   const signers=deedSigners(o);let execHtml;
-  if(ent)execHtml=`<div class="dexec">${inWit}<div class="dsigs"><div class="dsig"><div>${esc(d.entityName||'')}</div><div class="dl">By: ${BL(30)} (SEAL)</div><div>Name: ${B(d.signer,24)}</div><div>Title: ${B(d.signerTitle,24)}</div></div></div>
-    ${notary('', 'entity',`<p>I certify that the following person personally appeared before me this day, showing satisfactory evidence of identity, and acknowledged the due execution and authority to execute the foregoing instrument on behalf of ${esc(d.entityName||'the entity')}, as its ${esc(d.signerTitle||'authorized representative')}: ${esc(d.signer||'')||BL(20)}.</p>`)}</div>`;
-  else if(d.ackMode==='joint')execHtml=`<div class="dexec">${inWit}<div class="dsigs">${(signers.length?signers:[{name:''}]).map(x=>sigLine(x.name)).join('')}</div>${notary(esc(signers.map(x=>x.name).join(', '))||BL(24),'joint')}</div>`;
-  else execHtml=(signers.length?signers:[{key:'blank',name:''}]).map((x,i)=>`<div class="dexec">${i===0?inWit:''}<div class="dsigs">${sigLine(x.name)}</div>${notary(esc(x.name)||BL(24),x.key)}</div>`).join('');
+  const entBlock=x=>{const c=x.c;return `<div class="dsigs"><div class="dsig"><div><b>${entDesc(c)}</b></div><div class="dl">By: ${BL(30)} (SEAL)</div><div>Name: ${B(c.signer,24)}</div><div>Title: ${B(c.signerTitle,24)}</div></div></div>`+
+    notary('',x.key,`<p>I certify that the following person personally appeared before me this day, showing satisfactory evidence of identity, and acknowledged the due execution and authority to execute the foregoing instrument on behalf of ${entDesc(c)}, as its ${esc(c.signerTitle||'authorized representative')}: ${esc(c.signer||'')||BL(20)}.</p>`)};
+  const indv=signers.filter(x=>!isEnt(x.c)),ents=signers.filter(x=>isEnt(x.c));const units=[];
+  if(d.ackMode==='joint'&&indv.length)units.push(`<div class="dsigs">${indv.map(x=>sigLine(x.name)).join('')}</div>${notary(esc(indv.map(x=>x.name).join(', ')),'joint')}`);
+  else indv.forEach(x=>units.push(`<div class="dsigs">${sigLine(x.name)}</div>${notary(esc(x.name)||BL(24),x.key)}`));
+  ents.forEach(x=>units.push(entBlock(x)));
+  if(!units.length)units.push(`<div class="dsigs">${sigLine('')}</div>${notary(BL(24),'blank')}`);
+  execHtml=units.map((u,i)=>`<div class="dexec">${i===0?inWit:''}${u}</div>`).join('');
   return `<div class="deed" id="deed-doc">
   <div class="dtop" aria-hidden="true"></div>
-  <h3>NORTH CAROLINA GENERAL WARRANTY DEED</h3>
+  <h3>${esc((stName||'').toUpperCase())}${stName?' ':''}GENERAL WARRANTY DEED</h3>
   <table class="dhead"><tr><td>Excise Tax: <b>${exc?money(exc).replace('.00',''):'$'+'<span class="blank" style="min-width:8ch"></span>'}</b></td><td>Parcel Identifier No. ${B(P.parcel,18)}</td></tr>
   <tr><td colspan="2">Verified by <span class="blank" style="min-width:14ch"></span> County on the <span class="blank" style="min-width:5ch"></span> day of <span class="blank" style="min-width:12ch"></span>, 20<span class="blank" style="min-width:4ch"></span> &nbsp; By: <span class="blank" style="min-width:16ch"></span></td></tr>
   <tr><td colspan="2">This instrument was prepared by: ${B(d.preparedBy||firmLine(),30)}</td></tr>
@@ -1183,7 +1216,7 @@ function deedDoc(o,C){const d=o.deed,P=o.property;
   <table class="dparties"><tr><th>GRANTOR</th><th>GRANTEE</th></tr><tr><td>${grantor||'<span class="blank" style="min-width:24ch"></span>'}</td><td>${grantee||'<span class="blank" style="min-width:24ch"></span>'}</td></tr>
   <tr><td>Mailing address: ${gAddr||'<span class="blank" style="min-width:20ch"></span>'}</td><td>Mailing address: ${bAddr||'<span class="blank" style="min-width:20ch"></span>'}</td></tr></table>
   <p class="small">The designation Grantor and Grantee as used herein shall include said parties, their heirs, successors, and assigns, and shall include singular, plural, masculine, feminine or neuter as required by context.</p>
-  <p>WITNESSETH: ${d.granting==='template'?GRANT_TPL:GRANT_STD} ${where}, State of North Carolina, and more particularly described as follows:</p>
+  <p>WITNESSETH: ${d.granting==='template'?GRANT_TPL:GRANT_STD} ${where}, State of ${stName?esc(stName):BL(14)}, and more particularly described as follows:</p>
   <div class="dlegal">${legal}</div>
   <p>Property address: ${B(propAddr(o),30)}</p>
   <p>All or a portion of the property herein conveyed (${pr==='includes'?'X':'&nbsp;&nbsp;'}) includes or (${pr==='excludes'?'X':'&nbsp;&nbsp;'}) does not include the primary residence of a Grantor.</p>
@@ -1203,7 +1236,7 @@ const DEED_ACT={
     try{await DL.save({filename:`Deed_${(o.fileNo||'draft').replace(/[^\w.-]+/g,'_')}_v${o.deed.version}.html`,data:deedFileHtml(o,compute(o))});UI.deedMsg='Deed saved. Open it in a browser or Word to print.';logA(o,`Deed version ${o.deed.version} downloaded`,'doc');save()}
     catch(e){UI.deedMsg=e&&e.code==='declined'?'':e&&e.code==='rate_limited'?'A save prompt is already open.':'Downloads are not available in this view.'}refresh()},
   async deedDrive(){const o=O(),dr=driveOf(o);if(!dr.folderId){UI.deedMsg='Create or link a Drive folder for this file on Documents first.';refresh();return}
-    if(!o.deed.version)DEED_ACT.deedGenerate();const title=`NC General Warranty Deed v${o.deed.version} - ${o.fileNo||'Untitled'} - ${propAddr(o)||'No address'}`.slice(0,200);
+    if(!o.deed.version)DEED_ACT.deedGenerate();const title=`${deedState(o)?deedState(o)+' General':'General'} Warranty Deed v${o.deed.version} - ${o.fileNo||'Untitled'} - ${propAddr(o)||'No address'}`.slice(0,200);
     DRV.busy='deed';UI.deedMsg='Saving the deed to Google Drive…';refresh();
     try{const f=createdOf(await drive('create_file',{title,textContent:deedFileHtml(o,compute(o)),contentMimeType:'text/html',parentId:dr.folderId}));if(!f)throw{code:'tool_error',message:'Drive did not return the new document.'};
       addDoc(o,{...f,title:f.title||title},`Deed v${o.deed.version}`);logA(o,`Deed version ${o.deed.version} saved to Google Drive`,'doc');DRV.busy='';UI.deedMsg=`Saved “${f.title||title}” to the file’s Drive folder.`;save();render()}
@@ -1211,7 +1244,7 @@ const DEED_ACT={
   deedFocus(el){const f=el.dataset.focus;if(!f)return;const t=document.getElementById(f);if(t){t.scrollIntoView({block:'center'});t.focus()}else if(/^f-(legal|property)/.test(f))hudGoto('order',f)},
 };
 PANELS.deed=()=>{const o=O(),d=o.deed;if(!d.ack||typeof d.ack!=='object')d.ack={};const sg=deedSigners(o);sg.forEach(x=>{if(!d.ack[x.key])d.ack[x.key]={state:'',county:''}});return `
-<h1>Deed</h1><p class="lede">A North Carolina general warranty deed built from this file. Grantor and grantee come from Contacts, the legal description, parcel, county and derivation (book and page of the deed into the grantor) from Order & property, and the excise tax from Transfer & excise taxes. Edit any source and the deed updates.</p>
+<h1>Deed</h1><p class="lede">A general warranty deed for the state where the property is located${deedState(o)?` (${esc(deedState(o))})`:''}, built from this file. Grantor and grantee come from Contacts, the legal description, parcel, county and derivation (book and page of the deed into the grantor) from Order & property, and the excise tax from Transfer & excise taxes. Edit any source and the deed updates.</p>
 <div class="stack">
 <section class="panel"><div class="panel-head"><h2>Deed readiness</h2>${out(C=>{const c=deedChecks(o,C),e=c.filter(x=>x.sev==='error').length;return e?`<span class="pill bad">${e} to fix</span>`:c.length?`<span class="pill warn">${c.length} to review</span>`:'<span class="pill ok">Ready to sign</span>'})}</div>
  ${out(C=>{const c=deedChecks(o,C);return c.length?`<ul class="checks">${c.map(x=>`<li class="${x.sev}"><span class="ic">${x.sev==='error'?'✕':'!'}</span><span>${esc(x.label)}<small>${esc(x.detail)}${x.focus?` · <button class="b small" data-act="deedFocus" data-focus="${x.focus}">Fix</button>`:''}</small></span></li>`).join('')}</ul>`:'<p class="empty">Every deed field is filled and the grantor matches the owner of record.</p>'},'div')}
@@ -1224,6 +1257,10 @@ PANELS.deed=()=>{const o=O(),d=o.deed;if(!d.ack||typeof d.ack!=='object')d.ack={
  ${fld('Acquired by (instrument)',inp('property.priorInstrument',{ph:'e.g. General Warranty Deed'}))}${fld('Deed Book',inp('property.priorBook'),'Order.Property.PriorBook')}
  ${fld('Page',inp('property.priorPage'),'Order.Property.PriorPage')}${fld('Recorded on',inp('property.priorDate',{type:'date'}))}
  ${fld('Plat Book',inp('property.platBook'))}${fld('Plat Page',inp('property.platPage'))}</div></section>
+<section class="panel"><div class="panel-head"><h2>Signing parties</h2><span class="code">Grantors = sellers · grantees = buyers on Contacts</span></div>${titleList()}
+ ${o.contacts.some(c=>(c.role==='Seller'||c.role==='Buyer')&&c.name)?o.contacts.map((c,i)=>(c.role==='Seller'||c.role==='Buyer')&&c.name?`<div class="contact" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"><div class="f"><span>${c.role==='Seller'?'Grantor':'Grantee'}</span><b style="color:var(--fg);font-size:14px">${esc(c.name)}</b></div>${partyFields(c,i)}</div>`:'').join('')
+   :'<p class="empty">Add the buyers and sellers on Contacts first.</p>'}
+ <p class="note">An LLC, corporation, trust or partnership signs through a person. The deed then reads “[Entity], a [State] limited liability company, By: [name], [title]”, and that grantor gets an entity acknowledgment instead of an individual one.</p></section>
 <section class="panel"><div class="panel-head"><h2>Deed details</h2></div><div class="grid">
  ${fld('Deed date (defaults to settlement date)',inp('deed.date',{type:'date'}))}
  ${fld('Prepared by (blank uses the closing firm)',inp('deed.preparedBy',{ph:firmLine()||'Attorney or firm preparing the deed'}),'','wide')}
@@ -1232,13 +1269,11 @@ PANELS.deed=()=>{const o=O(),d=o.deed;if(!d.ack||typeof d.ack!=='object')d.ack={
  ${fld('City (if inside city limits)',inp('deed.city'))}${fld('Township',inp('deed.township'))}
  ${fld('Primary residence of a grantor',sel('deed.primary',[['','— Choose —'],['includes','Includes'],['excludes','Does not include']]))}
  ${fld('Grantee takes title',sel('deed.vesting',[['','No designation'],['tbe','As tenants by the entirety'],['jtwros','As joint tenants with right of survivorship'],['tic','As tenants in common']]))}
- ${fld('Grantor is',sel('deed.grantorType',[['individual','Individual(s) — sellers on Contacts'],['llc','Limited liability company'],['corp','Corporation'],['trust','Trust'],['partnership','Partnership']],{re:true}))}
- ${d.grantorType==='individual'?`${fld('Grantor marital status',inp('deed.marital',{ph:'e.g. unmarried, or a married couple'}))}${fld('Spouse joining (not on title)',inp('deed.spouse',{ph:'Name, if a non-owner spouse signs'}))}`
-   :`${fld('Entity name',inp('deed.entityName'),'','wide')}${fld('Formed in (state)',inp('deed.entityState'))}${fld('Signer name',inp('deed.signer'))}${fld('Signer title',inp('deed.signerTitle',{ph:'e.g. Member/Manager'}))}`}
+ ${fld('Individual grantors’ marital status',inp('deed.marital',{ph:'e.g. unmarried, or a married couple'}))}${fld('Spouse joining (not on title)',inp('deed.spouse',{ph:'Name, if a non-owner spouse signs'}))}
  ${fld('Default notary state',inp('deed.ackState',{ph:'Defaults to property state'}))}${fld('Default notary county',inp('deed.ackCounty',{ph:'Defaults to property county'}))}
- ${d.grantorType==='individual'?fld('Notary blocks',sel('deed.ackMode',[['each','A separate signature and notary block for each grantor'],['joint','One notary block for all grantors']],{re:true}),'','wide'):''}
- ${d.grantorType==='individual'&&d.ackMode!=='joint'&&sg.length?`<div class="wide"><div class="scroll"><table class="t"><thead><tr><th>Grantor signing</th><th>Notary state (blank = default)</th><th>Notary county (blank = default)</th></tr></thead><tbody>
-  ${sg.map(x=>`<tr><td><b>${esc(x.name)}</b>${x.key==='spouse'?' <span class="tag">joining spouse</span>':''}</td><td>${inp(`deed.ack.${x.key}.state`,{ph:'e.g. Virginia'})}</td><td>${inp(`deed.ack.${x.key}.county`,{ph:'e.g. Fairfax'})}</td></tr>`).join('')}</tbody></table></div>
+ ${sg.some(x=>!isEnt(x.c))?fld('Notary blocks for individual grantors',sel('deed.ackMode',[['each','A separate signature and notary block for each grantor'],['joint','One notary block for all individual grantors']],{re:true}),'','wide'):''}
+ ${sg.length?`<div class="wide"><div class="scroll"><table class="t"><thead><tr><th>Grantor signing</th><th>Notary state (blank = default)</th><th>Notary county (blank = default)</th></tr></thead><tbody>
+  ${sg.map(x=>`<tr><td><b>${esc(x.name)}</b>${x.key==='spouse'?' <span class="tag">joining spouse</span>':''}${isEnt(x.c)?`<br><span class="note">by ${esc(x.c.signer||'signer not named')}${x.c.signerTitle?', '+esc(x.c.signerTitle):''}</span>`:''}</td><td>${inp(`deed.ack.${x.key}.state`,{ph:'e.g. Virginia'})}</td><td>${inp(`deed.ack.${x.key}.county`,{ph:'e.g. Fairfax'})}</td></tr>`).join('')}</tbody></table></div>
   <p class="note">${sg.length} grantor${sg.length>1?'s':''} → ${sg.length} signature line${sg.length>1?'s':''} and ${sg.length} notary block${sg.length>1?'s':''}. Each signature prints on the same page as its own notary block. Add or remove sellers on Contacts.</p></div>`:''}
  ${fld('Granting clause',sel('deed.granting',[['standard','Warranty clause: grant, bargain, sell and convey (recommended)'],['template','Uploaded template wording (remise and release)']],{re:true}),'','wide')}
  <label class="f wide"><span>Title exceptions</span><textarea id="f-deed-exceptions" data-bind="deed.exceptions">${esc(d.exceptions)}</textarea></label></div>
@@ -1914,6 +1949,7 @@ function render(){
    </aside>
    <main>${G?'':fileBand()}${o.status==='Closed'&&!G?'<div class="banner closed">This file is closed. Post-closing items can still be recorded on Close out file; reopen it there to change anything else.</div>':''}<fieldset class="lock"${locked?' disabled':''}>${PANELS[tab]()}</fieldset></main></div>`;
   refresh();
+  try{const h=document.querySelector('header.top');if(h)document.documentElement.style.setProperty('--topbar-h',h.offsetHeight+'px')}catch(e){}
 }
 function refresh(){
   MEMO=new Map();const C=CC(O());
