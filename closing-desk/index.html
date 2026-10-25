@@ -259,7 +259,7 @@ const KEY='hub-closing-desk-v1';
 const ROLES=['Buyer','Seller','Lender','Settlement Agent','Title Underwriter','Listing Broker','Selling Broker','Mortgage Payoff Lender','HOA','Tax Collector','Clerk / Recorder','Appraiser','Surveyor','Insurance Agent','Attorney','Other'];
 const LOAN_TYPES=['FHA','RHS','Conv. Unins.','VA','Conv. Ins.'];
 const GLOBAL_TABS=[['dash','Dashboard'],['crm','Contacts directory'],['team','Team & notifications']];
-const TABS=[['order','Order & property','File set up'],['contacts','Contacts','File set up'],['tracker','Closing tracker','File set up'],['prorations','Prorations','Escrow'],['taxes','Transfer & excise taxes','Escrow'],['charges','Settlement charges','Escrow'],['payoffs','Payoffs & credits','Escrow'],['ledger','Trust ledger','Escrow'],['hud','HUD-1 statement','Closing'],['deed','Deed','Closing'],['settings','Rates & settings','Closing'],['docs','Documents · Drive','General'],['audit','Audit log','General'],['codes','Field codes & merge','General']];
+const TABS=[['order','Order & property','File set up'],['contacts','Contacts','File set up'],['tracker','Closing tracker','File set up'],['prorations','Prorations','Escrow'],['taxes','Transfer & excise taxes','Escrow'],['charges','Settlement charges','Escrow'],['payoffs','Payoffs & credits','Escrow'],['ledger','Trust ledger','Escrow'],['hud','HUD-1 statement','Closing'],['deed','Deed','Closing'],['docs','Documents · Drive','Closing'],['closeout','Close out file','Closing'],['settings','Rates & settings','Closing'],['audit','Audit log','General'],['codes','Field codes & merge','General']];
 const DRIVE='Google Drive';
 
 /* ---------- utilities ---------- */
@@ -300,18 +300,20 @@ const MS_TEMPLATE=[
   {key:'closing',label:'Closing held',from:'close',days:0,auto:true},
   {key:'funded',label:'Funded and disbursed',from:'close',days:0,auto:true},
   {key:'deed_prepared',label:'Deed prepared and checked',from:'close',days:-3,auto:true},
-  {key:'recorded',label:'Deed and mortgage recorded',from:'close',days:3}];
+  {key:'recorded',label:'Deed and mortgage recorded',from:'close',days:3,auto:true},
+  {key:'policies',label:'Title policies issued',from:'close',days:30,auto:true},
+  {key:'tax1099',label:'1099-S reported',from:'close',days:30,auto:true}];
 const MS={};MS_TEMPLATE.forEach(t=>MS[t.key]=t);
 const MS_MATCH={title_back:/title\s*(search|commitment|report|exam)|\bcommitment\b|\bo\s*&\s*e\b/i,buyer_sheet:/buyer.{0,15}(info|information|questionnaire)/i,
   seller_sheet:/seller.{0,15}(info|information|questionnaire)/i,payoff:/payoff/i,survey:/\bsurvey\b/i,hoa:/estoppel|\bhoa\b/i,lender_pkg:/(lender|closing)\s*(closing\s*)?(instructions|package)/i};
-const MS_AUTO={deed_prepared:(o,C)=>!!(o.deed&&o.deed.version)&&!deedChecks(o,C).some(x=>x.sev==='error'),hud_approved:(o,C)=>!!o.hudVersion&&!C.errors,closing:o=>o.status==='Closed',
+const MS_AUTO={recorded:o=>!!(o.closeout&&o.closeout.deedBook&&o.closeout.deedPage),policies:o=>!!(o.closeout&&(o.closeout.ownerPolicy||o.closeout.loanPolicy)),tax1099:o=>!!(o.closeout&&o.closeout.tax1099),deed_prepared:(o,C)=>!!(o.deed&&o.deed.version)&&!deedChecks(o,C).some(x=>x.sev==='error'),hud_approved:(o,C)=>!!o.hudVersion&&!C.errors,closing:o=>o.status==='Closed',
   funded:(o,C)=>C.disb.length>0&&C.disb.every(d=>o.issued[d.key])&&Math.abs(C.fileBal)<0.005};
 const newMs=t=>({key:t.key,label:t.label,status:'open',due:'',requested:'',received:'',note:'',docId:''});
 function norm(o){if(!o)return o;if(!o.openedDate)o.openedDate=o.created||today();
   if(!Array.isArray(o.milestones))o.milestones=MS_TEMPLATE.map(newMs);
   else MS_TEMPLATE.forEach(t=>{if(!o.milestones.some(m=>m.key===t.key))o.milestones.push(newMs(t))});
   if(!Array.isArray(o.audit))o.audit=[];
-  o.deed=Object.assign(deedDefaults(),o.deed||{});if(!Array.isArray(o.labels))o.labels=[];
+  o.deed=Object.assign(deedDefaults(),o.deed||{});o.closeout=Object.assign(coDefaults(),o.closeout||{});if(!Array.isArray(o.labels))o.labels=[];
   if(!o.tax||typeof o.tax!=='object')o.tax={state:'',locality:'',ptype:'sfr',primary:true,payer:{},addOns:[],confirmed:false};if(!o.tax.payer)o.tax.payer={};if(!Array.isArray(o.tax.addOns))o.tax.addOns=[];
   const MIG={countyDeed:'taxLocalDeed',countyMtg:'taxLocalMtg',deedStamps:'taxStateDeed',mtgStamps:'taxStateMtg',intangible:'taxOther'};
   o.items.forEach(i=>{if(MIG[i.calc]){i.calc=MIG[i.calc];if(i.line==='1206')i.desc='Other recording taxes (intangible, note taxes)'}});
@@ -356,6 +358,7 @@ function fieldLabel(path){const o=O(),p=path.split('.');const sub=f=>SUBF[f]||f;
     case 'contacts':return row?`Contact ${row.name||row.role} ${sub(p[2])}`:'Contact';case 'prorations':return row?`Proration (${row.kind}) ${sub(p[2])}`:'Proration';
     case 'payoffs':return `Payoff ${sub(p[2])}`;case 'adjustments':return `Credit/adjustment ${sub(p[2])}`;case 'receipts':return `Receipt ${sub(p[2])}`;
     case 'milestones':return row?`Tracker: ${row.label} ${sub(p[2])}`:'Tracker';
+    case 'closeout':return 'Close-out '+({deedBook:'deed book',deedPage:'deed page',deedRecorded:'deed recorded date',deedInstr:'deed instrument no.',mtgBook:'mortgage book',mtgPage:'mortgage page',mtgRecorded:'mortgage recorded date',releaseBook:'release book',releasePage:'release page',releaseRecorded:'release recorded date',ownerPolicy:"owner's policy no.",loanPolicy:'loan policy no.',policyDate:'policy date',tax1099:'1099-S filed',docsArchived:'documents archived',notes:'notes',reviewed:'open items reviewed'}[p[1]]||p[1]);
     case 'deed':if(p[1]==='ack'){const g=deedSigners(o).find(x=>x.key===p[2]);return `Deed notary ${p[3]} for ${g?g.name:'grantor'}`}return 'Deed '+({granting:'granting clause',date:'date',preparedBy:'prepared by',returnTo:'return to',brief:'index description',primary:'primary residence',vesting:'grantee tenancy',marital:'grantor marital status',spouse:'joining spouse',grantorType:'grantor type',entityName:'entity name',entityState:'entity state',signer:'signer',signerTitle:'signer title',ackState:'default notary state',ackCounty:'default notary county',ackMode:'notary blocks',exceptions:'exceptions'}[p[1]]||p[1]);
     case 'tax':return p[1]==='addOns'?`Local tax ${sub(p[3])}`:'Transfer tax '+({state:'state',locality:'locality',ptype:'property type',primary:'primary residence',confirmed:'rates confirmed'}[p[1]]||p[1]);case 'settings':return 'Setting '+p.slice(1).join(' ');
     case 'commission':return p[1]==='splits'?`Commission split ${sub(p[3])}`:'Commission '+sub(p[1])}
@@ -843,7 +846,7 @@ function merge(o,C){const map={};FIELDS.forEach(([k,,f])=>map[k]=f(o,C)??'');
   return String(o.mergeTemplate||'').replace(/\{\{\s*([\w.]+)\s*\}\}/g,(m,k)=>k in map?(map[k]||'____'):`[unknown field ${k}]`)}
 
 /* ---------- view helpers ---------- */
-let OUT=[];let UI={digest:'',teamMsg:'',sending:'',delStaff:'',dstaff:'',dlabel:'',deedMsg:'',tab:'dash',confirmDelete:false,check:null,io:'',q:'',dq:'',dfilter:'open',hudMsg:'',akind:'all',cq:'',crole:'all',crmOpen:''};
+let OUT=[];let UI={coMsg:'',digest:'',teamMsg:'',sending:'',delStaff:'',dstaff:'',dlabel:'',deedMsg:'',tab:'dash',confirmDelete:false,check:null,io:'',q:'',dq:'',dfilter:'open',hudMsg:'',akind:'all',cq:'',crole:'all',crmOpen:''};
 let DRV={busy:'',msg:'',err:'',list:null,listFor:'',listAt:0,folders:null,results:null};
 const out=(fn,tag='span',cls='')=>{const i=OUT.push(fn)-1;return `<${tag}${cls?` class="${cls}"`:''} data-out="${i}"></${tag}>`};
 const fid=p=>'f-'+p.replace(/\./g,'-');
@@ -1337,6 +1340,80 @@ ${!ME?'<div class="msg info">Sign-in linking works when this page is open in cla
    return `<p style="margin:0"><b>Subject:</b> ${esc(d.subject)}</p><div class="deedpaper" style="padding:16px">${d.html}</div>`},'div')}
 </section></div>`};
 
+/* ---------- Close out: post-closing recording, policies, final ledger and the close-out record ---------- */
+const coDefaults=()=>({deedBook:'',deedPage:'',deedRecorded:'',deedInstr:'',mtgBook:'',mtgPage:'',mtgRecorded:'',releaseBook:'',releasePage:'',releaseRecorded:'',
+  ownerPolicy:'',loanPolicy:'',policyDate:'',tax1099:false,docsArchived:false,keysDelivered:false,notes:'',closedBy:'',reviewed:false});
+function closeoutChecks(o,C){const x=o.closeout,out=[];const add=(sev,label,detail,focus)=>out.push({sev,label,detail,focus});
+  const hudErr=C.checks.filter(c=>!c.ok&&c.sev==='error');
+  if(hudErr.length)add('error','HUD-1 and ledger checks pass',hudErr.map(c=>c.label).join('; '),'tab:hud');
+  if(!C.recTotal&&C.expTotal)add('error','Funds received',`No receipts recorded against ${money(C.expTotal)} expected`,'tab:ledger');
+  const unissued=C.disb.filter(d=>!o.issued[d.key]);
+  if(unissued.length)add('error','Every disbursement issued',`${unissued.length} not issued: ${unissued.map(d=>`${d.name} ${money(d.amt)}`).join('; ')}`,'tab:ledger');
+  if(Math.abs(C.trustBal)>=0.005)add('error','Trust account at $0.00 for this file',`${money(C.trustBal)} still in trust (receipts less issued checks and wires)`,'tab:ledger');
+  if(!x.deedBook||!x.deedPage)add('warn','Deed recording information entered','Enter the book and page where the new deed recorded','f-closeout-deedBook');
+  if(num(o.loanAmount)>0&&(!x.mtgBook||!x.mtgPage))add('warn','Mortgage / deed of trust recording entered','Enter the book and page where the new security instrument recorded','f-closeout-mtgBook');
+  if(o.payoffs.some(p=>num(p.amount))&&(!x.releaseBook&&!x.releaseRecorded))add('warn','Payoff release or satisfaction recorded','Track the cancellation of the paid-off lien','f-closeout-releaseBook');
+  if(!x.ownerPolicy&&num(o.salesPrice)>0)add('warn',"Owner's policy issued",'Enter the owner’s policy number','f-closeout-ownerPolicy');
+  if(!x.loanPolicy&&num(o.loanAmount)>0)add('warn',"Lender's policy issued",'Enter the loan policy number','f-closeout-loanPolicy');
+  if(!x.tax1099&&num(o.salesPrice)>0)add('warn','1099-S reported','Confirm the seller’s 1099-S was filed or is queued','f-closeout-tax1099');
+  if(!x.docsArchived)add('warn','File documents archived','Confirm recorded documents and the final HUD-1 are saved to the file’s Drive folder','f-closeout-docsArchived');
+  const open=o.milestones.filter(m=>!msDone(o,C,m)&&m.key!=='closing');if(open.length)add('warn','Tracker items complete',`${open.length} still open: ${open.slice(0,4).map(m=>m.label).join(', ')}${open.length>4?'…':''}`,'tab:tracker');
+  return out}
+function closeoutReport(o,C){const x=o.closeout,L=C.L;const row=(k,v)=>`<tr><td style="padding:4px 8px;border:1px solid #ccc;color:#555;width:42%">${k}</td><td style="padding:4px 8px;border:1px solid #ccc">${v||'—'}</td></tr>`;
+  const bp=(b,p,d)=>b||p?`Book ${esc(b||'___')}, Page ${esc(p||'___')}${d?`, recorded ${esc(fmtDate(d))}`:''}`:'';
+  return `<div style="font:13px/1.5 Arial,Helvetica,sans-serif;color:#111;max-width:760px;margin:0 auto;padding:24px">
+  <h2 style="margin:0 0 4px">Close-out record · File ${esc(o.fileNo||'')}</h2><p style="margin:0 0 14px;color:#555">${esc(propAddr(o))} · ${esc(o.status)}${o.closedAt?` on ${esc(fmtDate(o.closedAt))}`:''}${x.closedBy?` by ${esc(x.closedBy)}`:''}</p>
+  <table style="border-collapse:collapse;width:100%;margin-bottom:14px">${row('Buyer / grantee',esc(C.names('Buyer')))}${row('Seller / grantor',esc(C.names('Seller')))}${row('Lender',esc(C.names('Lender')))}
+   ${row('Settlement date',esc(fmtDate(o.settlementDate)))}${row('Parcel ID',esc(o.property.parcel))}${row('Paralegal',esc(staffName(o.assignedTo)))}
+   ${row('Contract sales price',money(o.salesPrice))}${row('Loan amount',money(o.loanAmount))}${row('Cash from borrower (303)',money(L[303].amt))}${row('Cash to seller (603)',money(L[603].amt))}
+   ${row('Total settlement charges (1400)',`${money(C.B1400)} borrower · ${money(C.S1400)} seller`)}
+   ${row('Receipts',money(C.recTotal))}${row('Disbursements',money(C.disbTotal))}${row('Trust balance',money(C.trustBal))}
+   ${row('Deed recorded',bp(x.deedBook,x.deedPage,x.deedRecorded)+(x.deedInstr?` · Instrument ${esc(x.deedInstr)}`:''))}${row('Security instrument recorded',bp(x.mtgBook,x.mtgPage,x.mtgRecorded))}
+   ${row('Payoff release recorded',bp(x.releaseBook,x.releasePage,x.releaseRecorded))}${row("Owner's policy",esc(x.ownerPolicy))}${row("Loan policy",esc(x.loanPolicy))}${row('Policies issued',esc(fmtDate(x.policyDate)))}
+   ${row('1099-S reported',x.tax1099?'Yes':'No')}${row('Documents archived',x.docsArchived?'Yes':'No')}${row('Notes',esc(x.notes))}</table>
+  <h3 style="margin:14px 0 6px">Disbursements</h3><table style="border-collapse:collapse;width:100%">${C.disb.map(d=>{const i=o.issued[d.key];return `<tr><td style="padding:4px 8px;border:1px solid #ccc">${esc(d.name)}</td><td style="padding:4px 8px;border:1px solid #ccc;text-align:right">${money(d.amt)}</td><td style="padding:4px 8px;border:1px solid #ccc">${i?`${esc(i.method)} ${esc(i.no)} · ${esc(fmtDate(i.date))}`:'Not issued'}</td></tr>`}).join('')||'<tr><td>None</td></tr>'}</table>
+  <h3 style="margin:14px 0 6px">Receipts</h3><table style="border-collapse:collapse;width:100%">${o.receipts.map(r=>`<tr><td style="padding:4px 8px;border:1px solid #ccc">${esc(fmtDate(r.date))}</td><td style="padding:4px 8px;border:1px solid #ccc">${esc(r.from)}</td><td style="padding:4px 8px;border:1px solid #ccc">${esc(r.method)}</td><td style="padding:4px 8px;border:1px solid #ccc;text-align:right">${money(r.amount)}</td></tr>`).join('')||'<tr><td>None</td></tr>'}</table>
+  <p style="color:#555;margin-top:16px">Generated ${esc(new Date().toLocaleString('en-US'))} from The Closing Desk.</p></div>`}
+const CO_ACT={
+  closeoutFix(el){const f=el.dataset.focus||'';if(f.startsWith('tab:'))return hudGoto(f.slice(4),'');const t=document.getElementById(f);if(t){t.scrollIntoView({block:'center'});t.focus()}},
+  closeOut(){const o=O(),C=compute(o);const ch=closeoutChecks(o,C);if(ch.some(x=>x.sev==='error'))return;const w=ch.filter(x=>x.sev==='warn');
+    if(w.length&&!o.closeout.reviewed){UI.coMsg='Tick “I reviewed the open items” to close with items still open.';refresh();return}
+    o.status='Closed';o.closedAt=today();o.closeout.closedBy=(meStaff()&&meStaff().name)||whoName(ME);
+    logA(o,`File closed out${w.length?` with ${w.length} open item${w.length>1?'s':''}: ${w.map(x=>x.label).join('; ')}`:''}`,'status');UI.coMsg='File closed. It drops off the open-file lists and the morning email.';save();render()},
+  reopenFile(){const o=O();const r=((document.getElementById('reopen-reason')||{}).value||'').trim();if(!r){UI.coMsg='Enter the reason for reopening first. It is written to the audit log.';refresh();return}
+    o.status='Open';o.closedAt='';o.closeout.reviewed=false;logA(o,`File reopened: ${r}`,'status');UI.coMsg='File reopened.';save();render()},
+  async closeoutDownload(){const o=O();if(!DL)return;try{await DL.save({filename:`Closeout_${(o.fileNo||'file').replace(/[^\w.-]+/g,'_')}.html`,data:`<!doctype html><html><head><meta charset="utf-8"><title>Close-out ${esc(o.fileNo||'')}</title></head><body>${closeoutReport(o,compute(o))}</body></html>`});
+    UI.coMsg='Close-out record saved.';logA(o,'Close-out record downloaded','doc');save()}catch(e){UI.coMsg=e&&e.code==='declined'?'':'Downloads are not available in this view.'}refresh()},
+  async closeoutDrive(){const o=O(),dr=driveOf(o);if(!dr.folderId){UI.coMsg='Create or link a Drive folder on Documents first.';refresh();return}
+    const title=`Close-out record - ${o.fileNo||'Untitled'} - ${propAddr(o)||''}`.slice(0,200);DRV.busy='co';refresh();
+    try{const f=createdOf(await drive('create_file',{title,textContent:`<!doctype html><html><body>${closeoutReport(o,compute(o))}</body></html>`,contentMimeType:'text/html',parentId:dr.folderId}));
+      if(!f)throw{code:'tool_error',message:'Drive did not return the new document.'};addDoc(o,{...f,title:f.title||title},'Close-out record');logA(o,'Close-out record saved to Google Drive','doc');DRV.busy='';UI.coMsg=`Saved “${f.title||title}” to Drive.`;save();render()}
+    catch(e){driveFail(e,true);UI.coMsg=DRV.err;refresh()}},
+};
+PANELS.closeout=()=>{const o=O(),x=o.closeout,closed=o.status==='Closed';return `
+<h1>Close out file</h1><p class="lede">The last step on a file. Record where the deed and security instrument recorded, the policy numbers and the payoff release, confirm the trust account is at zero, then close the file. A closed file leaves the open-file lists and the morning email, and the close-out is written to the audit log.</p>
+<div class="stack">
+<section class="panel"><div class="panel-head"><h2>Close-out checklist</h2>${out(C=>{const c=closeoutChecks(o,C),e=c.filter(y=>y.sev==='error').length;return closed?'<span class="pill ok">Closed</span>':e?`<span class="pill bad">${e} blocking</span>`:c.length?`<span class="pill warn">${c.length} open item${c.length>1?'s':''}</span>`:'<span class="pill ok">Ready to close</span>'})}</div>
+ ${out(C=>{const c=closeoutChecks(o,C);return c.length?`<ul class="checks">${c.map(y=>`<li class="${y.sev}"><span class="ic">${y.sev==='error'?'✕':'!'}</span><span>${esc(y.label)}<small>${esc(y.detail)} · <button class="b small" data-act="closeoutFix" data-focus="${esc(y.focus)}">Go</button></small></span></li>`).join('')}</ul>`:'<p class="empty">Everything is recorded, issued and balanced.</p>'},'div')}
+ ${closed?`<div class="msg ok">Closed ${esc(fmtDate(o.closedAt))}${x.closedBy?` by ${esc(x.closedBy)}`:''}.</div>
+   <div class="toolbar"><input id="reopen-reason" placeholder="Reason for reopening (required)" aria-label="Reason for reopening"><button class="b" data-act="reopenFile">Reopen file</button></div>`
+  :`<div>${chk('closeout.reviewed','I reviewed the open items and want to close the file with them noted')}</div>
+   <div class="row-actions">${out(C=>`<button class="b primary" data-act="closeOut"${closeoutChecks(o,C).some(y=>y.sev==='error')?' disabled title="Clear the blocking items first"':''}>Close out file</button>`,'span')}</div>`}
+ ${out(()=>UI.coMsg?`<div class="msg info">${esc(UI.coMsg)}</div>`:'','div')}
+</section>
+<section class="panel"><div class="panel-head"><h2>Recording</h2><span class="code">From the recorded documents returned by the Register of Deeds</span></div><div class="grid">
+ ${fld('Deed Book',inp('closeout.deedBook'))}${fld('Deed Page',inp('closeout.deedPage'))}${fld('Deed recorded on',inp('closeout.deedRecorded',{type:'date'}))}${fld('Instrument no.',inp('closeout.deedInstr'))}
+ ${fld('Deed of trust / mortgage Book',inp('closeout.mtgBook'))}${fld('Page',inp('closeout.mtgPage'))}${fld('Recorded on',inp('closeout.mtgRecorded',{type:'date'}))}
+ ${fld('Payoff release / satisfaction Book',inp('closeout.releaseBook'))}${fld('Page',inp('closeout.releasePage'))}${fld('Recorded on',inp('closeout.releaseRecorded',{type:'date'}))}</div></section>
+<section class="panel"><div class="panel-head"><h2>Policies & post-closing</h2></div><div class="grid">
+ ${fld("Owner's policy number",inp('closeout.ownerPolicy'))}${fld("Loan policy number",inp('closeout.loanPolicy'))}${fld('Policies issued on',inp('closeout.policyDate',{type:'date'}))}
+ <div class="f" style="justify-content:flex-end;gap:8px">${chk('closeout.tax1099','Seller 1099-S filed or queued')}${chk('closeout.docsArchived','Recorded documents and final HUD-1 archived')}</div>
+ <label class="f wide"><span>Close-out notes</span><textarea id="f-closeout-notes" data-bind="closeout.notes">${esc(x.notes)}</textarea></label></div>
+ <p class="note">Recording the deed book and page completes the “Deed and mortgage recorded” tracker item; entering the policy numbers completes “Title policies issued”.</p></section>
+<section class="panel"><div class="panel-head"><h2>Close-out record</h2><div class="row-actions">${DL?'<button class="b small" data-act="closeoutDownload">Download</button>':''}<button class="b small" data-act="closeoutDrive"${MCP&&!DRV.busy?'':' disabled'}>Save to Google Drive</button></div></div>
+ ${out(C=>`<div class="deedpaper">${closeoutReport(o,C)}</div>`,'div')}</section>
+</div>`};
+
 /* ---------- HUD-1 click-to-enter: each amount writes back to the field that owns it ---------- */
 const TAB_NAME=Object.fromEntries(TABS.map(([k,l])=>[k,l]));
 const edA=(path,cur,title,ovr)=>` data-edit="${path}" data-cur="${num(cur)}"${ovr!=null?` data-ovr="${ovr}"`:''} tabindex="0" role="button" title="${esc(title)}"`;
@@ -1498,7 +1575,7 @@ PANELS.hud=()=>{const o=O();const g=o.hudGenerated;return `
 ${out(C=>`<div class="hudwrap" id="hud-doc">${hudPage1(o,C)}${hudPage2(o,C)}${hudPage3(o,C)}</div>`,'div')}
 <section class="panel noprint" id="hud-checks"><div class="panel-head"><h2>Discrepancy check</h2>${out(C=>C.errors?`<span class="pill bad">${C.errors} blocking</span>`:`<span class="pill ok">No blocking items</span>`)}</div>
  ${out(checklist)}
- <div class="row-actions">${out(C=>o.status==='Closed'?`<button class="b" data-act="reopen">Reopen file</button>`:`<button class="b primary" data-act="closeFile"${C.errors?' disabled title="Clear the blocking items first"':''}>Close file</button>`)}
+ <div class="row-actions">${out(C=>o.status==='Closed'?`<button class="b" data-act="tab" data-tab="closeout">Closed · view close-out</button>`:`<button class="b primary" data-act="tab" data-tab="closeout">Go to close out</button>`)}
  <span class="note">To print, download the HUD-1 and open it in a browser, or save it to Google Drive.</span></div>
 </section>
 </div>`};
@@ -1804,7 +1881,7 @@ function render(){
   const nav=GLOBAL_TABS.map(([k,l])=>`<button class="home" data-act="tab" data-tab="${k}" aria-current="${tab===k}">${l}${k==='dash'?out(()=>{const n=FILES().filter(dfilterFn('flagged')).length;return n?`<span class="pill bad" style="padding:0 7px">${n}</span>`:''}):''}</button>`).join('')
     +`<div class="flow">${esc(o.fileNo||'Untitled file')}</div>`+TABS.map(([k,l,f])=>{const h=f!==flow?`<div class="subflow">${f}</div>`:'';flow=f;
     return `${h}<button data-act="tab" data-tab="${k}" aria-current="${k===tab}">${l}${k==='hud'?out(C=>C.errors?`<span class="pill bad" style="padding:0 7px">${C.errors}</span>`:''):''}${k==='docs'?out(()=>{const n=driveOf(O()).docs.length;return n?`<span class="pill neutral" style="padding:0 7px">${n}</span>`:''}):''}</button>`}).join('');
-  const locked=o.status==='Closed'&&!['hud','ledger','codes','settings','docs','audit','tracker'].includes(tab)&&!G;
+  const locked=o.status==='Closed'&&!['hud','ledger','codes','settings','docs','audit','tracker','closeout'].includes(tab)&&!G;
   document.getElementById('app').innerHTML=`
   <header class="top"><div class="brand"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="18" rx="3" fill="var(--accent)"/><path d="M6 9h8M6 13h5" stroke="var(--accent-fg)" stroke-width="2" stroke-linecap="round"/><path d="M13.5 15.5l2 2 3.5-4" fill="none" stroke="var(--accent-fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><b>The Closing Desk</b><span>Title & escrow</span></div>
    <div class="filebar">${out(()=>{const n=FILES().reduce((a,x)=>a+flagsOf(x).length,0);return `<button class="b bell" data-act="dashFilter" data-f="flagged" data-to="dash-notes">Alerts${n?` <span class="pill bad" style="padding:0 7px">${n}</span>`:''}</button>`},'span')}${G?'':`<button class="b primary" data-act="generate">Generate HUD-1</button><button class="b" data-act="dupOrder">Duplicate</button>
@@ -1819,7 +1896,7 @@ function render(){
     <nav class="rail" aria-label="Modules">${nav}</nav>
     ${out(syncFoot,'div','side-foot')}
    </aside>
-   <main>${G?'':fileBand()}${o.status==='Closed'&&!G?'<div class="banner closed">This file is closed. Reopen it from the HUD-1 screen to make changes.</div>':''}<fieldset class="lock"${locked?' disabled':''}>${PANELS[tab]()}</fieldset></main></div>`;
+   <main>${G?'':fileBand()}${o.status==='Closed'&&!G?'<div class="banner closed">This file is closed. Post-closing items can still be recorded on Close out file; reopen it there to change anything else.</div>':''}<fieldset class="lock"${locked?' disabled':''}>${PANELS[tab]()}</fieldset></main></div>`;
   refresh();
 }
 function refresh(){
@@ -1892,7 +1969,7 @@ const ACT={
     catch(e){msg('That text is not a closing-desk file. Paste the full text produced by "Copy this file\'s data".')}},
   loadSample(){const o=sampleOrder();logA(o,'File opened (test scenario)','status');DB.orders.push(o);DB.current=o.id;UI.tab='hud';save();render()},
 };
-Object.assign(ACT,DRIVE_ACT,DEED_ACT,LABEL_ACT,TEAM_ACT);
+Object.assign(ACT,DRIVE_ACT,DEED_ACT,LABEL_ACT,TEAM_ACT,CO_ACT);
 function msg(t){const m=document.getElementById('io-msg');if(m)m.textContent=t}
 function copyText(t,el){try{navigator.clipboard.writeText(t).catch(()=>selectEl(el))}catch(e){selectEl(el)}}
 function selectEl(el){if(!el)return;if(el.select){el.select();return}const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r)}
