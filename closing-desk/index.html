@@ -144,6 +144,7 @@ table.t .w-desc{min-width:200px} table.t .w-pay{min-width:180px} table.t .w-amt{
 .tag.auto{background:var(--accent-soft);color:var(--accent)}
 .mini{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 .mini input{width:84px}
+.mini input[type=checkbox]{width:auto;padding:0}
 .kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:13px}
 .kv dt{color:var(--muted)} .kv dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
 .kv .total{font-weight:700;color:var(--fg)}
@@ -248,6 +249,13 @@ tr.hl td{background:var(--accent-soft)}
 .deedpaper .dtop{position:relative;border-bottom:1px dashed #9aa8bb;background:repeating-linear-gradient(135deg,rgba(28,77,140,.04) 0 8px,transparent 8px 16px)}
 .deedpaper .dtop::after{content:"3 in. top margin reserved for the Register of Deeds";position:absolute;bottom:6px;left:0;right:0;text-align:center;font:11px var(--sans);color:#6b7686}
 .deedpaper .dexec{outline:1px dashed #c9d2dd;outline-offset:6px}
+.stickyhead{position:sticky;top:calc(var(--topbar-h,64px) + env(safe-area-inset-top,0px));max-height:calc(100dvh - var(--topbar-h,64px) - 100px);overflow:auto;background:var(--surface)}
+.stickyhead thead th{position:sticky;top:0;z-index:4;background:var(--surface);box-shadow:inset 0 -2px 0 var(--line)}
+.t th.col-b,.t th.col-s{font-size:12px}
+.t th.col-b{color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.t th.col-s{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--surface))}
+.t td.cb{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+.t td.cs{background:color-mix(in srgb,var(--warn) 6%,transparent)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -964,7 +972,7 @@ function itemRow(it,i){
   if(it.roll)opts+=` <span class="tag" title="Borrower amount rolls into line ${it.roll}">→ ${it.roll}</span>`;
   if(it.gfe)opts+=` <span class="tag">GFE ${esc(it.gfe)}</span>`;
   return `<tr><td class="ln">${esc(it.line)}</td><td class="w-desc">${desc}</td><td class="w-pay">${sel(`${p}.payeeId`,contactOpts())}</td>
-  <td class="w-amt">${cell('b')}</td><td class="w-amt">${it.bOnly?'<span class="empty">—</span>':cell('s')}</td>
+  <td class="w-amt cb">${cell('b')}</td><td class="w-amt cs">${it.bOnly?'<span class="empty">—</span>':cell('s')}</td>
   <td class="w-amt"><div class="mini" style="flex-wrap:nowrap">${inp(`${p}.poc`,{num:true})}${sel(`${p}.pocBy`,[['B','B'],['S','S'],['L','L'],['R','Br']])}</div></td>
   <td><div class="mini">${opts}</div></td>
   <td>${it.custom?`<button class="x" data-act="delRow" data-list="items" data-i="${i}" aria-label="Remove line">×</button>`:''}</td></tr>`;
@@ -973,7 +981,7 @@ PANELS.charges=()=>{const o=O();const cm=o.commission;
   const rows=SECTIONS.slice(1).map(([sec,title])=>{
     const its=o.items.map((it,i)=>({it,i})).filter(x=>num(x.it.line)>=sec&&num(x.it.line)<sec+100);
     const rolls=Object.keys(ROLLUPS).map(Number).filter(n=>n>=sec&&n<sec+100);
-    const list=[...its.map(x=>({n:num(x.it.line),html:itemRow(x.it,x.i)})),...rolls.map(n=>({n,html:`<tr class="rollup"><td class="ln">${n}</td><td>${esc(ROLLUPS[n][0])}</td><td></td><td class="m">${out(C=>money(C.roll[n]||0))}</td><td></td><td></td><td><span class="tag">GFE ${ROLLUPS[n][1]} · total</span></td><td></td></tr>`}))]
+    const list=[...its.map(x=>({n:num(x.it.line),html:itemRow(x.it,x.i)})),...rolls.map(n=>({n,html:`<tr class="rollup"><td class="ln">${n}</td><td>${esc(ROLLUPS[n][0])}</td><td></td><td class="m cb">${out(C=>money(C.roll[n]||0))}</td><td class="cs"></td><td></td><td><span class="tag">GFE ${ROLLUPS[n][1]} · total</span></td><td></td></tr>`}))]
       .sort((a,b)=>a.n-b.n);
     return `<tr class="sec"><td class="ln">${sec}</td><td colspan="6">${esc(title)}</td><td><button class="b small" data-act="addLine" data-sec="${sec}">Add line</button></td></tr>${list.map(x=>x.html).join('')}`}).join('');
   return `
@@ -989,12 +997,12 @@ PANELS.charges=()=>{const o=O();const cm=o.commission;
  </tbody></table></div>
  <div class="row-actions"><button class="b" data-act="addSplit">Add broker split</button></div>
 </section>
-<section class="panel"><div class="scroll"><table class="t">
- <thead><tr><th>Line</th><th>Description</th><th>Payee</th><th class="m">Borrower</th><th class="m">Seller</th><th class="m">P.O.C. / by</th><th>Rules</th><th></th></tr></thead>
+<section class="panel"><p class="note">P.O.C. amounts were paid outside closing. They print on the HUD for information and stay out of totals and the ledger. A borrower amount on a line marked → rolls into that total line, as the 2010 HUD-1 requires.</p><div class="scroll stickyhead" id="charges-grid"><table class="t">
+ <thead><tr><th>Line</th><th>Description</th><th>Payee</th><th class="m col-b">Borrower</th><th class="m col-s">Seller</th><th class="m">P.O.C. / by</th><th>Rules</th><th></th></tr></thead>
  <tbody>${rows}
- <tr class="rollup"><td class="ln">1400</td><td>Total settlement charges (enter on lines 103 and 502)</td><td></td><td class="m">${out(C=>money(C.B1400))}</td><td class="m">${out(C=>money(C.S1400))}</td><td></td><td></td><td></td></tr>
+ <tr class="rollup"><td class="ln">1400</td><td>Total settlement charges (enter on lines 103 and 502)</td><td></td><td class="m cb">${out(C=>money(C.B1400))}</td><td class="m cs">${out(C=>money(C.S1400))}</td><td></td><td></td><td></td></tr>
  </tbody></table></div>
- <p class="note">P.O.C. amounts were paid outside closing. They print on the HUD for information and stay out of totals and the ledger. A borrower amount on a line marked → rolls into that total line, as the 2010 HUD-1 requires.</p>
+
 </section></div>`};
 
 PANELS.payoffs=()=>{const o=O();return `
@@ -1914,6 +1922,7 @@ function render(){
    </aside>
    <main>${G?'':fileBand()}${o.status==='Closed'&&!G?'<div class="banner closed">This file is closed. Post-closing items can still be recorded on Close out file; reopen it there to change anything else.</div>':''}<fieldset class="lock"${locked?' disabled':''}>${PANELS[tab]()}</fieldset></main></div>`;
   refresh();
+  try{const h=document.querySelector('header.top');if(h)document.documentElement.style.setProperty('--topbar-h',h.offsetHeight+'px')}catch(e){}
 }
 function refresh(){
   MEMO=new Map();const C=CC(O());
