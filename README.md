@@ -22,6 +22,8 @@ A SoftPro-style closing and title workbench that generates a HUD-1 Settlement St
 | Trust ledger | Receipts, auto-built disbursements, check/wire issuance | Balance check: receipts − disbursements = $0.00 |
 | HUD-1 | Generated 3-page statement; click any amount to enter it and it saves to the owning screen (charges, order, payoffs/credits) with an audit entry with discrepancy check | Close file is blocked while anything is out of balance |
 | Documents · Drive | Per-file Google Drive folder (create or link), HUD-1 versions saved as Google Docs, new Docs/Sheets, attach existing Drive files | Dashboard document list |
+| Deed | North Carolina general warranty deed filled from the file: grantor/grantee (Contacts), legal description, parcel, county, property address, excise tax (tax engine), derivation clause (book/page/date of the vesting deed), plat reference, tenancy, marital status, entity signers and NC acknowledgment. Readiness checks include a grantor vs. owner-of-record match | Download (.html) or save to the file's Drive folder; versioned and audited |
+| File labels | Preset and custom labels (Rush, Cash deal, 1031 exchange, Estate / probate...) | Sidebar, file header, dashboard filter and search |
 | Field codes & merge | `{{Order.Buyer.Names}}`-style codes and a merge template | Any document template |
 
 New files start with every amount at $0.00. **Rates & settings → Open a test scenario** loads clearly fictional data that exercises every calculation.
