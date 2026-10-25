@@ -1,6 +1,6 @@
 # The-Hub-
 
-## Closing Desk (`closing-desk/index.html`)
+## The Closing Desk (`closing-desk/index.html`)
 
 A SoftPro-style closing and title workbench that generates a HUD-1 Settlement Statement. It is a single HTML file with no build step: open it in a browser.
 
