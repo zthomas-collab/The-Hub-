@@ -120,7 +120,7 @@ pre.merge{white-space:pre-wrap;background:var(--paper);color:var(--ink);border:1
 /* HUD-1 form: printed-paper look in both themes */
 .hudwrap{overflow-x:auto;min-width:0;padding-bottom:6px}
 .hud{background:var(--paper);color:var(--ink);font:11px/1.25 var(--form);width:860px;padding:22px 26px;margin:0 0 18px;border:1px solid var(--line);box-shadow:0 1px 3px rgba(0,0,0,.08)}
-.hud table{border-collapse:collapse;width:100%}
+.hud table{border-collapse:collapse;width:100%;font:inherit}
 .hud td,.hud th{border:1px solid var(--rule);padding:3px 5px;vertical-align:top}
 .hud .hdr{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px}
 .hud .hdr h3{margin:0;font-size:16px}
@@ -318,6 +318,7 @@ function compute(o){
   const price=num(o.salesPrice),loan=num(o.loanAmount),D=num(o.earnestMoney);
   const byId=id=>o.contacts.find(c=>c.id===id);
   C.cname=id=>{const c=byId(id);return c?(c.name||`(${c.role}, unnamed)`):''};
+  C.hname=id=>{const c=byId(id);return c&&c.name?c.name:''};
   C.names=role=>o.contacts.filter(c=>c.role===role&&c.name).map(c=>c.name).join(' and ');
   C.first=role=>o.contacts.find(c=>c.role===role);
   const isLender=id=>{const c=byId(id);return!!c&&c.role==='Lender'};
@@ -709,7 +710,7 @@ function hudPage1(o,C){
   rows+=head('300. Cash at Settlement from/to Borrower','600. Cash at Settlement to/from Seller');rows+=pair(301,601)+pair(302,602)+pair(303,603);
   const party=role=>{const cs=o.contacts.filter(c=>c.role===role&&c.name);return cs.length?esc(cs.map(c=>c.name).join(' and '))+(cs[0].address?'<br>'+esc(cs[0].address):''):''};
   const agent=C.first('Settlement Agent');
-  return `<div class="hud"><div class="hdr"><h3>A. Settlement Statement (HUD-1)</h3><span class="omb">OMB Approval No. 2502-0265</span></div>
+  return `<div class="hud" id="hud-p1"><div class="hdr"><h3>A. Settlement Statement (HUD-1)</h3><span class="omb">OMB Approval No. 2502-0265${o.hudGenerated?`<br>Generated ${esc(o.hudGenerated)} · v${esc(o.hudVersion)}`:'<br>Draft preview'}</span></div>
   <table><tr><td style="width:46%"><span class="lbl">B. Type of Loan</span>${LOAN_TYPES.map((t,i)=>`${i+1}. ${cb(o.loanType===t)} ${t}`).join(' &nbsp; ')}</td>
    <td><span class="lbl">6. File Number</span>${esc(o.fileNo)}</td><td><span class="lbl">7. Loan Number</span>${esc(o.loanNo)}</td><td><span class="lbl">8. Mortgage Insurance Case Number</span>${esc(o.miCase)}</td></tr>
    <tr><td colspan="4" class="note"><b>C. Note:</b> This form is furnished to give you a statement of actual settlement costs. Amounts paid to and by the settlement agent are shown. Items marked “(p.o.c.)” were paid outside the closing; they are shown here for informational purposes and are not included in the totals.</td></tr></table>
@@ -722,7 +723,7 @@ function hudPage1(o,C){
   <div class="foot"><span>Previous edition are obsolete</span><span>Page 1 of 3</span><span>HUD-1</span></div></div>`;
 }
 function hudItemDesc(o,C,it){
-  let d=esc(it.desc||'');const pn=C.cname(it.payeeId);
+  let d=esc(it.desc||'');const pn=C.hname(it.payeeId);
   if(it.calc==='reserve'){d+=` ${num(it.months)} months @ ${money(it.monthly)} per month`}
   else if(it.line==='901'){const x=C.interest;d+=x.days?` from ${dstr(x.from)} to ${dstr(x.to)} @ ${money(x.perDiem)}/day`:' from &nbsp;&nbsp;&nbsp; to &nbsp;&nbsp;&nbsp; @ $ &nbsp;&nbsp; /day'}
   else if(it.line==='902'){d+=` for ${esc(it.months||'')} months`}else if(it.line==='903'){d+=` for ${esc(it.years||'')} years`}
@@ -735,7 +736,7 @@ function hudPage2(o,C){
   const R=(n,desc,inner,b,s,cls='')=>`<tr${cls?` class="${cls}"`:''}><td class="ln">${n}</td><td>${desc}</td><td class="inner">${inner}</td><td class="amt">${b}</td><td class="amt">${s}</td></tr>`;
   const m=v=>num(v)?money(v):'';const cm=o.commission;
   let rows=`<tr class="sh"><td colspan="2">700. Total Real Estate Broker Fees &nbsp; ${money(num(o.salesPrice))} × ${num(cm.rate)}% = ${money(C.commTotal)}<br><span style="font-weight:400">Division of commission (line 700) as follows:</span></td><td></td><td class="amt" style="font-size:9px;text-align:center">Paid From Borrower’s Funds at Settlement</td><td class="amt" style="font-size:9px;text-align:center">Paid From Seller’s Funds at Settlement</td></tr>`;
-  const sp=C.splits;const sDesc=x=>x?`${money(x.amt)} to ${esc(C.cname(x.contactId))}`:'$ &nbsp;&nbsp;&nbsp; to';
+  const sp=C.splits;const sDesc=x=>x?`${money(x.amt)} to ${esc(C.hname(x.contactId))}`:'$ &nbsp;&nbsp;&nbsp; to';
   rows+=R('701.',sDesc(sp[0]),'','','');rows+=R('702.',sDesc(sp[1])+(sp.length>2?'; '+sp.slice(2).map(sDesc).join('; '):''),'','','');
   rows+=R('703.','Commission paid at settlement'+(C.retained?` (${money(C.retained)} deposit retained by broker)`:''),'',money(C.commB),money(C.commS));
   const inSec=(sec)=>o.items.filter(it=>num(it.line)>=sec&&num(it.line)<sec+100);
@@ -763,12 +764,12 @@ function hudPage2(o,C){
     entries.sort((a,b)=>a.n-b.n).forEach(e=>rows+=e.html);
   }
   rows+=R('1400.','<b>Total Settlement Charges</b> (enter on lines 103, Section J and 502, Section K)','',`<b>${money(C.B1400)}</b>`,`<b>${money(C.S1400)}</b>`,'tot');
-  return `<div class="hud"><div class="hdr"><h3>L. Settlement Charges</h3><span class="omb">File ${esc(o.fileNo)}</span></div><table>${rows}</table>
+  return `<div class="hud" id="hud-p2"><div class="hdr"><h3>L. Settlement Charges</h3><span class="omb">File ${esc(o.fileNo)}</span></div><table>${rows}</table>
   <div class="foot"><span>Previous edition are obsolete</span><span>Page 2 of 3</span><span>HUD-1</span></div></div>`;
 }
 function hudPage3(o,C){
   const sig=o.contacts.filter(c=>(c.role==='Buyer'||c.role==='Seller')&&c.name);const ag=C.first('Settlement Agent');
-  return `<div class="hud"><div class="hdr"><h3>Certification</h3><span class="omb">File ${esc(o.fileNo)}</span></div>
+  return `<div class="hud" id="hud-p3"><div class="hdr"><h3>Certification</h3><span class="omb">File ${esc(o.fileNo)}</span></div>
   <p>I have carefully reviewed the HUD-1 Settlement Statement and to the best of my knowledge and belief, it is a true and accurate statement of all receipts and disbursements made on my account or by me in this transaction. I further certify that I have received a copy of the HUD-1 Settlement Statement.</p>
   <div class="sig">${(sig.length?sig:[{role:'Buyer',name:''},{role:'Seller',name:''}]).map(c=>`<div>${esc(c.role==='Buyer'?'Borrower':'Seller')}, ${esc(c.name)}</div>`).join('')}</div>
   <p style="margin-top:28px">The HUD-1 Settlement Statement which I have prepared is a true and accurate account of this transaction. I have caused or will cause the funds to be disbursed in accordance with this statement.</p>
@@ -777,15 +778,30 @@ function hudPage3(o,C){
   <div class="foot"><span>Previous edition are obsolete</span><span>Page 3 of 3</span><span>HUD-1</span></div></div>`;
 }
 const checklist=C=>`<ul class="checks">${C.checks.map(c=>`<li class="${c.ok?'ok':c.sev}"><span class="ic">${c.ok?'✓':c.sev==='error'?'✕':'!'}</span><span>${esc(c.label)}<small>${esc(c.detail)}</small></span></li>`).join('')}</ul>`;
-PANELS.hud=()=>{const o=O();return `
-<h1>HUD-1 statement</h1><p class="lede">Generated from the order, contacts, charges and ledger. Nothing here is typed by hand. Fix a number at its source screen and the statement updates.</p>
+PANELS.hud=()=>{const o=O();const g=o.hudGenerated;return `
+<h1>HUD-1 statement</h1><p class="lede">Built from the order, contacts, charges and ledger. Nothing on the statement is typed by hand. Change a number on its source screen and generate again.</p>
 <div class="stack">
-<section class="panel noprint"><div class="panel-head"><h2>Discrepancy check</h2>${out(C=>C.errors?`<span class="pill bad">${C.errors} blocking</span>`:`<span class="pill ok">Ready to close</span>`)}</div>
+<section class="panel noprint">
+ <div class="panel-head"><div class="row-actions">
+   <button class="b primary" data-act="generate">${g?'Regenerate HUD-1':'Generate HUD-1'}</button>
+   <span class="note">${g?`Last generated ${esc(g)} · ${esc(o.hudVersion?'version '+o.hudVersion:'')}`:'Not generated yet. The preview below already shows live figures.'}</span></div>
+  ${out(C=>C.errors?`<span class="pill bad">${C.errors} blocking · out of balance</span>`:`<span class="pill ok">Balanced · ready to close</span>`)}</div>
+ ${out(C=>`<dl class="kv" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr) auto)">
+   <dt>Line 1400 borrower</dt><dd>${money(C.B1400)}</dd><dt>Line 1400 seller</dt><dd>${money(C.S1400)}</dd>
+   <dt class="total">Cash ${C.L[303].amt>=0?'from':'to'} borrower (303)</dt><dd class="total">${money(Math.abs(C.L[303].amt))}</dd>
+   <dt class="total">Cash ${C.L[603].amt>=0?'to':'from'} seller (603)</dt><dd class="total">${money(Math.abs(C.L[603].amt))}</dd></dl>`,'div')}
+ <div class="row-actions"><span class="note">Jump to:</span>
+  <button class="b small" data-act="jump" data-to="hud-p1">Page 1 · Summary J/K</button>
+  <button class="b small" data-act="jump" data-to="hud-p2">Page 2 · Charges L</button>
+  <button class="b small" data-act="jump" data-to="hud-p3">Page 3 · Signatures</button>
+  <button class="b small" data-act="jump" data-to="hud-checks">Discrepancy check</button></div>
+</section>
+${out(C=>`<div class="hudwrap" id="hud-doc">${hudPage1(o,C)}${hudPage2(o,C)}${hudPage3(o,C)}</div>`,'div')}
+<section class="panel noprint" id="hud-checks"><div class="panel-head"><h2>Discrepancy check</h2>${out(C=>C.errors?`<span class="pill bad">${C.errors} blocking</span>`:`<span class="pill ok">No blocking items</span>`)}</div>
  ${out(checklist)}
  <div class="row-actions">${out(C=>o.status==='Closed'?`<button class="b" data-act="reopen">Reopen file</button>`:`<button class="b primary" data-act="closeFile"${C.errors?' disabled title="Clear the blocking items first"':''}>Close file</button>`)}
  <span class="note">To print, open this file from the repository in a browser and use its Print command. The HUD pages print without the app chrome.</span></div>
 </section>
-${out(C=>`<div class="hudwrap">${hudPage1(o,C)}${hudPage2(o,C)}${hudPage3(o,C)}</div>`,'div')}
 </div>`};
 
 PANELS.codes=()=>{const o=O();return `
@@ -835,6 +851,7 @@ function render(){
   document.getElementById('app').innerHTML=`
   <header class="top"><div class="brand"><b>The Hub</b><span>Closing desk</span></div>
    <div class="filebar"><select id="order-switch" data-change="switchOrder" aria-label="Open file">${DB.orders.map(x=>`<option value="${x.id}"${x.id===o.id?' selected':''}>${esc(x.fileNo||'Untitled file')}${x.property.street?' · '+esc(x.property.street):''}${x.status==='Closed'?' (closed)':''}</option>`).join('')}</select>
+    <button class="b primary" data-act="generate">Generate HUD-1</button>
     <button class="b" data-act="newOrder">New file</button><button class="b" data-act="dupOrder">Duplicate</button>
     ${UI.confirmDelete?`<span class="note">Delete this file permanently?</span><button class="b danger" data-act="doDelete">Delete</button><button class="b" data-act="cancelDelete">Keep</button>`:`<button class="b danger" data-act="askDelete">Delete</button>`}</div>
    ${out(C=>`<span class="pill ${o.status==='Closed'?'ok':'neutral'}">${esc(o.status)}</span><span class="pill ${Math.abs(C.fileBal)<0.005?'ok':'bad'}">${Math.abs(C.fileBal)<0.005?'Balanced':'Out of balance'} ${money(C.fileBal)}</span>${C.errors?`<span class="pill warn">${C.errors} to fix</span>`:''}`,'div','statusbox')}
@@ -880,6 +897,10 @@ const ACT={
     o.issued[d.key]={no,method:m,date:today(),amount:d.amt,name:d.name};UI.check=d.key;save();render()},
   voidD(el){delete O().issued[el.dataset.key];if(UI.check===el.dataset.key)UI.check=null;save();render()},
   viewCheck(el){UI.check=el.dataset.key;render()},closeCheck(){UI.check=null;render()},
+  generate(){const o=O();const d=new Date();o.hudGenerated=d.toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'numeric',minute:'2-digit'});
+    o.hudVersion=(o.hudVersion||0)+1;UI.tab='hud';try{history.replaceState(null,'','#hud')}catch(e){}save();render();
+    const el=document.getElementById('hud-doc');if(el)el.scrollIntoView({block:'start'})},
+  jump(el){const t=document.getElementById(el.dataset.to);if(t)t.scrollIntoView({block:'start'})},
   closeFile(){const o=O();if(compute(o).errors)return;o.status='Closed';save();render()},
   reopen(){O().status='Open';save();render()},
   copyMerge(){const t=document.getElementById('merge-out').textContent;copyText(t,document.getElementById('merge-out'))},
