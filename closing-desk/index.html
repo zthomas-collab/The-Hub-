@@ -383,6 +383,7 @@ function defSettings(){return{
 function newOrder(){
   const contacts=['Buyer','Seller','Lender','Settlement Agent','Title Underwriter','Listing Broker','Selling Broker','Tax Collector','Clerk / Recorder']
     .map(role=>({id:uid(),role,name:'',address:'',phone:'',email:'',ref:''}));
+  try{const f=CFG.firm;const sa=contacts.find(c=>c.role==='Settlement Agent');if(f&&f.name&&sa)Object.assign(sa,{name:f.name,address:firmAddr(),phone:f.phone||'',email:f.email||''})}catch(e){}
   const byRole=r=>(contacts.find(c=>c.role===r)||{}).id||'';
   const it=(line,desc,o={})=>{const {role,...rest}=o;return{id:uid(),line:String(line),desc,payeeId:role?byRole(role):'',b:0,s:0,poc:0,pocBy:'B',...rest}};
   const items=[
@@ -464,8 +465,11 @@ const O=()=>norm(DB.orders.find(x=>x.id===DB.current)||DB.orders[0]);
 /* Shared store: every saved file lives in the artifact database (collection "orders"), cached in this browser. */
 let REMOTE=null,MCP=null,DL=null,SYNC='local',SYNCMSG='';
 const pending=new Map(),seenRemote=new Set();let migrated=false,writeChain=Promise.resolve();
-let CFG={driveRootId:'',driveRootTitle:'',staff:[],schedule:null,lastSent:{}};
-try{Object.assign(CFG,JSON.parse(localStorage.getItem(KEY+'-cfg')||'{}'))}catch(e){}
+const FIRM0={name:'',street:'',city:'',state:'',zip:'',phone:'',email:'',license:'',bank:'',trustAccount:''};
+let CFG={driveRootId:'',driveRootTitle:'',staff:[],schedule:null,lastSent:{},firm:{...FIRM0}};
+try{Object.assign(CFG,JSON.parse(localStorage.getItem(KEY+'-cfg')||'{}'))}catch(e){}CFG.firm={...FIRM0,...(CFG.firm||{})};
+const firmAddr=()=>{const f=CFG.firm||{};return [f.street,[f.city,[f.state,f.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ')].filter(Boolean).join(', ')};
+const firmLine=()=>{const f=CFG.firm||{};return f.name?[f.name,firmAddr()].filter(Boolean).join(', '):''};
 let RECENT=[];try{RECENT=JSON.parse(localStorage.getItem(KEY+'-recent')||'[]')}catch(e){}
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}}
 function save(){const o=O();if(o)o.updated=Date.now();saveLocal();if(o)queueRemote(o)}
@@ -830,6 +834,7 @@ const FIELDS=[
   ['Order.Property.ParcelID','Parcel ID',o=>o.property.parcel],['Order.Property.Legal','Legal description',o=>o.property.legal],
   ['Order.Property.VestedOwner','Vested owner of record',o=>o.property.vestedOwner],['Order.Property.PriorBook','Prior deed book',o=>o.property.priorBook],
   ['Order.Property.PriorPage','Prior deed page',o=>o.property.priorPage],['Order.Property.Derivation','Derivation clause',o=>o.property.priorBook?`Book ${o.property.priorBook}, Page ${o.property.priorPage||'___'}${o.property.county?', '+o.property.county+' County Registry':''}`:''],
+  ['Firm.Name','Closing firm',()=>CFG.firm.name],['Firm.Address','Closing firm address',()=>firmAddr()],['Firm.Phone','Closing firm phone',()=>CFG.firm.phone],['Firm.Email','Closing firm email',()=>CFG.firm.email],
   ['Order.Labels','File labels',o=>labelsOf(o).join(', ')],['Deed.ExciseTax','Deed excise / transfer tax',(o,C)=>money(deedExcise(C))],
   ['Order.SalesPrice','Contract sales price',o=>money(o.salesPrice)],['Order.Loan.Amount','Loan amount',o=>money(o.loanAmount)],
   ['Order.Loan.Rate','Interest rate',o=>num(o.interestRate)+'%'],['Order.EarnestMoney','Earnest money',o=>money(o.earnestMoney)],
@@ -846,7 +851,7 @@ function merge(o,C){const map={};FIELDS.forEach(([k,,f])=>map[k]=f(o,C)??'');
   return String(o.mergeTemplate||'').replace(/\{\{\s*([\w.]+)\s*\}\}/g,(m,k)=>k in map?(map[k]||'____'):`[unknown field ${k}]`)}
 
 /* ---------- view helpers ---------- */
-let OUT=[];let UI={coMsg:'',digest:'',teamMsg:'',sending:'',delStaff:'',dstaff:'',dlabel:'',deedMsg:'',tab:'dash',confirmDelete:false,check:null,io:'',q:'',dq:'',dfilter:'open',hudMsg:'',akind:'all',cq:'',crole:'all',crmOpen:''};
+let OUT=[];let UI={firmMsg:'',coMsg:'',digest:'',teamMsg:'',sending:'',delStaff:'',dstaff:'',dlabel:'',deedMsg:'',tab:'dash',confirmDelete:false,check:null,io:'',q:'',dq:'',dfilter:'open',hudMsg:'',akind:'all',cq:'',crole:'all',crmOpen:''};
 let DRV={busy:'',msg:'',err:'',list:null,listFor:'',listAt:0,folders:null,results:null};
 const out=(fn,tag='span',cls='')=>{const i=OUT.push(fn)-1;return `<${tag}${cls?` class="${cls}"`:''} data-out="${i}"></${tag}>`};
 const fid=p=>'f-'+p.replace(/\./g,'-');
@@ -1062,10 +1067,10 @@ ${out(C=>checkView(o,C))}
 
 function checkView(o,C){
   if(!UI.check)return '';const iss=o.issued[UI.check];const d=C.disb.find(x=>x.key===UI.check);if(!iss)return '';
-  const agent=C.first('Settlement Agent');const agentName=agent&&agent.name?agent.name:'Settlement Agent';
+  const agent=C.first('Settlement Agent');const agentName=CFG.firm.trustAccount||(agent&&agent.name)||CFG.firm.name||'Settlement Agent';
   return `<section class="panel"><div class="panel-head"><h2>${iss.method==='Wire'?'Outgoing wire':'Check'} ${esc(iss.no)}</h2><button class="b small" data-act="closeCheck">Close</button></div>
   <div class="chequewrap"><div class="cheque">
-   <div class="r"><div><b>${esc(agentName)}</b><br>Escrow trust account<br>File ${esc(o.fileNo||'—')}</div><div style="text-align:right">No. <b>${esc(iss.no)}</b><br>Date ${esc(fmtDate(iss.date))}</div></div>
+   <div class="r"><div><b>${esc(agentName)}</b><br>${esc(firmAddr()||'Escrow trust account')}${CFG.firm.bank?'<br>'+esc(CFG.firm.bank):''}<br>File ${esc(o.fileNo||'—')}</div><div style="text-align:right">No. <b>${esc(iss.no)}</b><br>Date ${esc(fmtDate(iss.date))}</div></div>
    <div class="pay"><span>Pay to the order of</span><b style="flex:1">${esc(iss.name)}</b><span class="box">${money(iss.amount)}</span></div>
    <div class="pay"><span style="flex:1">${esc(words(iss.amount))}</span></div>
    <div class="r" style="margin-top:12px"><div>Memo: ${esc((d?d.refs:[]).join('; ')||'')}<br>Property: ${esc(propAddr(o)||'—')}</div><div style="border-top:1px solid #333;min-width:200px;text-align:center;padding-top:3px;margin-top:22px">Authorized signature</div></div>
@@ -1128,7 +1133,7 @@ function deedChecks(o,C){const d=o.deed,P=o.property,out=[];const add=(sev,label
   if(!P.county)add('error','County entered','Enter the county on Order & property','f-property-county');
   if(!P.priorBook||!P.priorPage)add('error','Derivation (book and page) entered','Enter the book and page of the deed into the grantor, from the title search','f-property-priorBook');
   if(!P.parcel)add('warn','Parcel identifier entered','Enter the parcel ID on Order & property','f-property-parcel');
-  if(!d.preparedBy)add('error','Preparer named','North Carolina requires the name of the person who prepared the deed','f-deed-preparedBy');
+  if(!d.preparedBy&&!firmLine())add('error','Preparer named','North Carolina requires the name of the person who prepared the deed','f-deed-preparedBy');
   if(!d.primary)add('warn','Primary residence box answered','Choose whether the property includes a grantor’s primary residence','f-deed-primary');
   const vested=P.vestedOwner||'',grantor=d.grantorType==='individual'?sellers.map(c=>c.name).join(' and '):d.entityName;
   if(!vested)add('warn','Vested owner of record entered','Enter the owner of record from the title search to compare against the grantor','f-property-vestedOwner');
@@ -1171,7 +1176,7 @@ function deedDoc(o,C){const d=o.deed,P=o.property;
   <h3>NORTH CAROLINA GENERAL WARRANTY DEED</h3>
   <table class="dhead"><tr><td>Excise Tax: <b>${exc?money(exc).replace('.00',''):'$'+'<span class="blank" style="min-width:8ch"></span>'}</b></td><td>Parcel Identifier No. ${B(P.parcel,18)}</td></tr>
   <tr><td colspan="2">Verified by <span class="blank" style="min-width:14ch"></span> County on the <span class="blank" style="min-width:5ch"></span> day of <span class="blank" style="min-width:12ch"></span>, 20<span class="blank" style="min-width:4ch"></span> &nbsp; By: <span class="blank" style="min-width:16ch"></span></td></tr>
-  <tr><td colspan="2">This instrument was prepared by: ${B(d.preparedBy,30)}</td></tr>
+  <tr><td colspan="2">This instrument was prepared by: ${B(d.preparedBy||firmLine(),30)}</td></tr>
   <tr><td colspan="2">Return to: ${bAddr||'<span class="blank" style="min-width:30ch"></span>'}</td></tr>
   <tr><td colspan="2">Brief description for the index: ${B(d.brief||String(P.legal||'').split(/[\n.;]/)[0].slice(0,80),30)}</td></tr></table>
   <p>THIS DEED made this ${dateTxt} by and between</p>
@@ -1221,7 +1226,7 @@ PANELS.deed=()=>{const o=O(),d=o.deed;if(!d.ack||typeof d.ack!=='object')d.ack={
  ${fld('Plat Book',inp('property.platBook'))}${fld('Plat Page',inp('property.platPage'))}</div></section>
 <section class="panel"><div class="panel-head"><h2>Deed details</h2></div><div class="grid">
  ${fld('Deed date (defaults to settlement date)',inp('deed.date',{type:'date'}))}
- ${fld('Prepared by (name and address)',inp('deed.preparedBy',{ph:'Attorney or firm preparing the deed'}),'','wide')}
+ ${fld('Prepared by (blank uses the closing firm)',inp('deed.preparedBy',{ph:firmLine()||'Attorney or firm preparing the deed'}),'','wide')}
  ${fld('Return to (defaults to grantee address)',inp('deed.returnTo'),'','wide')}
  ${fld('Brief description for the index',inp('deed.brief',{ph:'e.g. Lot 12, Oak Ridge'}),'','wide')}
  ${fld('City (if inside city limits)',inp('deed.city'))}${fld('Township',inp('deed.township'))}
@@ -1283,13 +1288,13 @@ function digestFor(staffId,asOf){const now=dnum(asOf||today());const files=FILES
   const tag={over:'OVERDUE',today:'TODAY',soon:'SOON',close:'CLOSING'};
   const text=[`Good morning${s.name?' '+s.name.split(' ')[0]:''},`,'',rows.length?`Here is what your ${files.length} open file${files.length>1?'s need':' needs'} today: ${cnt.over} overdue, ${cnt.today} due today, ${cnt.soon} due in the next 3 days, ${cnt.close} closing within a week.`:`None of your ${files.length} open file${files.length===1?'':'s'} has anything overdue or due in the next 3 days.`,'',
     ...rows.flatMap(r=>[`${r.o.fileNo||'Untitled'} · ${propAddr(r.o)||'No address'} · closing ${r.cl!=null?dstr(r.cl):'not set'}`,...r.items.map(i=>`  - [${tag[i.k]}] ${i.t}`),'']),
-    'Open The Closing Desk: https://claude.ai/artifact/RNnmNCDqtGV3P3tLJLEeey'].join('\n');
+    'Open The Closing Desk: https://claude.ai/artifact/RNnmNCDqtGV3P3tLJLEeey',...(CFG.firm.name?['',firmLine()]:[])].join('\n');
   const col={over:'#b3261e',today:'#8f5d00',soon:'#1c4d8c',close:'#17734a'};
   const html=`<div style="font:14px/1.5 Arial,Helvetica,sans-serif;color:#16202c;max-width:640px"><p>Good morning${s.name?' '+esc(s.name.split(' ')[0]):''},</p>
    <p>${rows.length?`Your ${files.length} open file${files.length>1?'s':''}: <b>${cnt.over} overdue</b>, ${cnt.today} due today, ${cnt.soon} due in the next 3 days, ${cnt.close} closing within a week.`:`Nothing on your ${files.length} open file${files.length===1?'':'s'} is overdue or due in the next 3 days.`}</p>
    ${rows.map(r=>`<table style="border-collapse:collapse;width:100%;margin:0 0 14px;border:1px solid #d3d9e1"><tr><td style="background:#e6f0fb;padding:8px 10px"><b>${esc(r.o.fileNo||'Untitled')}</b> · ${esc(propAddr(r.o)||'No address')}<br><span style="color:#5a6676">Closing ${r.cl!=null?dstr(r.cl):'not set'} · Buyer ${esc(CC(r.o).names('Buyer')||'—')} · Seller ${esc(CC(r.o).names('Seller')||'—')}</span></td></tr>
      ${r.items.map(i=>`<tr><td style="padding:6px 10px;border-top:1px solid #eef1f5"><b style="color:${col[i.k]}">${tag[i.k]}</b> &nbsp;${esc(i.t)}</td></tr>`).join('')}</table>`).join('')}
-   <p><a href="https://claude.ai/artifact/RNnmNCDqtGV3P3tLJLEeey">Open The Closing Desk</a></p></div>`;
+   <p><a href="https://claude.ai/artifact/RNnmNCDqtGV3P3tLJLEeey">Open The Closing Desk</a></p>${CFG.firm.name?`<p style="color:#5a6676;font-size:12px">${esc(firmLine())}</p>`:''}</div>`;
   return{subject,text,html,rows,files:files.length,cnt,to:s.email||''}}
 let cfgTimer=null;const saveCfgSoon=()=>{clearTimeout(cfgTimer);cfgTimer=setTimeout(saveCfg,700)};
 function mcpMsg(e,server){const c=e&&e.code;return({needs_reauth:`Reconnect ${server} in claude.ai Settings → Connectors, then try again.`,server_not_connected:`Add the ${server} connector in claude.ai Settings → Connectors, then try again.`,
@@ -1362,7 +1367,7 @@ function closeoutChecks(o,C){const x=o.closeout,out=[];const add=(sev,label,deta
 function closeoutReport(o,C){const x=o.closeout,L=C.L;const row=(k,v)=>`<tr><td style="padding:4px 8px;border:1px solid #ccc;color:#555;width:42%">${k}</td><td style="padding:4px 8px;border:1px solid #ccc">${v||'—'}</td></tr>`;
   const bp=(b,p,d)=>b||p?`Book ${esc(b||'___')}, Page ${esc(p||'___')}${d?`, recorded ${esc(fmtDate(d))}`:''}`:'';
   return `<div style="font:13px/1.5 Arial,Helvetica,sans-serif;color:#111;max-width:760px;margin:0 auto;padding:24px">
-  <h2 style="margin:0 0 4px">Close-out record · File ${esc(o.fileNo||'')}</h2><p style="margin:0 0 14px;color:#555">${esc(propAddr(o))} · ${esc(o.status)}${o.closedAt?` on ${esc(fmtDate(o.closedAt))}`:''}${x.closedBy?` by ${esc(x.closedBy)}`:''}</p>
+  ${CFG.firm.name?`<p style="margin:0 0 6px;color:#555">${esc(firmLine())}${CFG.firm.phone?' · '+esc(CFG.firm.phone):''}</p>`:''}<h2 style="margin:0 0 4px">Close-out record · File ${esc(o.fileNo||'')}</h2><p style="margin:0 0 14px;color:#555">${esc(propAddr(o))} · ${esc(o.status)}${o.closedAt?` on ${esc(fmtDate(o.closedAt))}`:''}${x.closedBy?` by ${esc(x.closedBy)}`:''}</p>
   <table style="border-collapse:collapse;width:100%;margin-bottom:14px">${row('Buyer / grantee',esc(C.names('Buyer')))}${row('Seller / grantor',esc(C.names('Seller')))}${row('Lender',esc(C.names('Lender')))}
    ${row('Settlement date',esc(fmtDate(o.settlementDate)))}${row('Parcel ID',esc(o.property.parcel))}${row('Paralegal',esc(staffName(o.assignedTo)))}
    ${row('Contract sales price',money(o.salesPrice))}${row('Loan amount',money(o.loanAmount))}${row('Cash from borrower (303)',money(L[303].amt))}${row('Cash to seller (603)',money(L[603].amt))}
@@ -1374,6 +1379,9 @@ function closeoutReport(o,C){const x=o.closeout,L=C.L;const row=(k,v)=>`<tr><td 
   <h3 style="margin:14px 0 6px">Disbursements</h3><table style="border-collapse:collapse;width:100%">${C.disb.map(d=>{const i=o.issued[d.key];return `<tr><td style="padding:4px 8px;border:1px solid #ccc">${esc(d.name)}</td><td style="padding:4px 8px;border:1px solid #ccc;text-align:right">${money(d.amt)}</td><td style="padding:4px 8px;border:1px solid #ccc">${i?`${esc(i.method)} ${esc(i.no)} · ${esc(fmtDate(i.date))}`:'Not issued'}</td></tr>`}).join('')||'<tr><td>None</td></tr>'}</table>
   <h3 style="margin:14px 0 6px">Receipts</h3><table style="border-collapse:collapse;width:100%">${o.receipts.map(r=>`<tr><td style="padding:4px 8px;border:1px solid #ccc">${esc(fmtDate(r.date))}</td><td style="padding:4px 8px;border:1px solid #ccc">${esc(r.from)}</td><td style="padding:4px 8px;border:1px solid #ccc">${esc(r.method)}</td><td style="padding:4px 8px;border:1px solid #ccc;text-align:right">${money(r.amount)}</td></tr>`).join('')||'<tr><td>None</td></tr>'}</table>
   <p style="color:#555;margin-top:16px">Generated ${esc(new Date().toLocaleString('en-US'))} from The Closing Desk.</p></div>`}
+const FIRM_ACT={firmToFile(){const o=O(),f=CFG.firm;if(!f.name){UI.firmMsg='Enter the firm name first.';refresh();return}
+  let sa=o.contacts.find(c=>c.role==='Settlement Agent');if(!sa){sa={id:uid(),role:'Settlement Agent',name:'',address:'',phone:'',email:'',ref:''};o.contacts.push(sa)}
+  Object.assign(sa,{name:f.name,address:firmAddr(),phone:f.phone||sa.phone,email:f.email||sa.email});logA(o,`Settlement agent set to the closing firm (${f.name})`,'edit');UI.firmMsg=`${f.name} is now the settlement agent on ${o.fileNo||'this file'}.`;save();refresh()}};
 const CO_ACT={
   closeoutFix(el){const f=el.dataset.focus||'';if(f.startsWith('tab:'))return hudGoto(f.slice(4),'');const t=document.getElementById(f);if(t){t.scrollIntoView({block:'center'});t.focus()}},
   closeOut(){const o=O(),C=compute(o);const ch=closeoutChecks(o,C);if(ch.some(x=>x.sev==='error'))return;const w=ch.filter(x=>x.sev==='warn');
@@ -1486,7 +1494,7 @@ function hudPage1(o,C){
    <tr><td colspan="4" class="note"><b>C. Note:</b> This form is furnished to give you a statement of actual settlement costs. Amounts paid to and by the settlement agent are shown. Items marked “(p.o.c.)” were paid outside the closing; they are shown here for informational purposes and are not included in the totals.</td></tr></table>
   <table style="margin-top:-1px"><tr><td class="box" style="width:33%"><span class="lbl">D. Name & Address of Borrower</span>${party('Buyer')}</td><td class="box" style="width:34%"><span class="lbl">E. Name & Address of Seller</span>${party('Seller')}</td><td class="box"><span class="lbl">F. Name & Address of Lender</span>${party('Lender')}</td></tr>
   <tr><td class="box"><span class="lbl">G. Property Location</span>${esc(propAddr(o))}${o.property.county?'<br>'+esc(o.property.county)+' County':''}${o.property.parcel?'<br>Parcel ID '+esc(o.property.parcel):''}</td>
-   <td class="box"><span class="lbl">H. Settlement Agent</span>${agent&&agent.name?esc(agent.name):''}<span class="lbl" style="margin-top:6px">Place of Settlement</span>${esc(o.placeOfSettlement)}</td>
+   <td class="box"><span class="lbl">H. Settlement Agent</span>${agent&&agent.name?esc(agent.name):esc(CFG.firm.name||'')}<span class="lbl" style="margin-top:6px">Place of Settlement</span>${esc(o.placeOfSettlement||firmAddr())}</td>
    <td class="box"><span class="lbl">I. Settlement Date</span>${esc(fmtDate(o.settlementDate))}${o.disbursementDate&&o.disbursementDate!==o.settlementDate?`<br>Disbursement ${esc(fmtDate(o.disbursementDate))}`:''}</td></tr></table>
   <table style="margin-top:8px"><tr class="sh"><td colspan="3">J. Summary of Borrower’s Transaction</td><td colspan="3">K. Summary of Seller’s Transaction</td></tr>${rows}</table>
   <p class="note" style="margin-top:6px">The Public Reporting Burden for this collection of information is estimated at 35 minutes per response for collecting, reviewing, and reporting the data. This agency may not collect this information, and you are not required to complete this form, unless it displays a currently valid OMB control number. No confidentiality is assured; this disclosure is mandatory. This is designed to provide the parties to a RESPA covered transaction with information during the settlement process.</p>
@@ -1592,9 +1600,17 @@ PANELS.codes=()=>{const o=O();return `
  ${out(C=>`<table class="t"><thead><tr><th>Code</th><th>Field</th><th>Current value</th></tr></thead><tbody>${FIELDS.map(([k,l,f])=>`<tr><td class="ln">{{${k}}}</td><td>${esc(l)}</td><td>${esc(f(o,C)||'—')}</td></tr>`).join('')}</tbody></table>`,'div')}
 </div></section></div>`};
 
+const cfgIn=(path,ph='',type='text')=>`<input id="cfg-${path.replace(/\./g,'-')}" data-cfg="${path}" type="${type}" value="${esc(getPath(CFG,path)||'')}"${ph?` placeholder="${esc(ph)}"`:''}>`;
 PANELS.settings=()=>{const o=O();const S=o.settings;return `
 <h1>Rates & settings</h1><p class="lede">Rate tables behind the calculated lines on this file. Defaults follow Florida's promulgated title rates and documentary stamp tax rates. Confirm each rate for your state, county and underwriter before relying on it.</p>
 <div class="stack">
+<section class="panel" id="closing-firm"><div class="panel-head"><h2>Closing firm</h2><span class="code">Used on every file</span></div><div class="grid">
+ ${fld('Firm name',cfgIn('firm.name','e.g. Example Law PLLC'),'Firm.Name','wide')}
+ ${fld('Street address',cfgIn('firm.street'),'Firm.Address','wide')}${fld('City',cfgIn('firm.city'))}${fld('State',cfgIn('firm.state'))}${fld('ZIP',cfgIn('firm.zip'))}
+ ${fld('Phone',cfgIn('firm.phone'),'Firm.Phone')}${fld('Email',cfgIn('firm.email','','email'),'Firm.Email')}${fld('License / bar no.',cfgIn('firm.license'))}
+ ${fld('Escrow bank',cfgIn('firm.bank','Bank holding the trust account'))}${fld('Trust account name',cfgIn('firm.trustAccount','e.g. Example Law PLLC Real Estate Trust Account'),'','wide')}</div>
+ <p class="note">The firm fills HUD-1 box H (settlement agent) and the place of settlement when a file leaves them blank, the deed’s “prepared by” line, the check header, the close-out record and the morning email. New files start with the firm as the Settlement Agent contact.</p>
+ <div class="row-actions"><button class="b" data-act="firmToFile">Use the firm as settlement agent on ${esc(o.fileNo||'this file')}</button>${out(()=>UI.firmMsg?`<span class="note">${esc(UI.firmMsg)}</span>`:'','span')}</div></section>
 <section class="panel"><div class="panel-head"><h2>Title premium rate table</h2><span class="code">Lines 1103, 1104, 1107, 1108</span></div>
  <div class="scroll"><table class="t"><thead><tr><th>Liability up to ($, 0 = no cap)</th><th class="m">Rate per $1,000</th><th></th></tr></thead><tbody>
  ${S.tiers.map((t,i)=>`<tr><td class="w-amt">${inp(`settings.tiers.${i}.upTo`,{num:true,dec:0})}</td><td class="w-amt">${inp(`settings.tiers.${i}.rate`,{num:true})}</td><td><button class="x" data-act="delRow" data-list="settings.tiers" data-i="${i}" aria-label="Remove tier">×</button></td></tr>`).join('')}
@@ -1883,7 +1899,7 @@ function render(){
     return `${h}<button data-act="tab" data-tab="${k}" aria-current="${k===tab}">${l}${k==='hud'?out(C=>C.errors?`<span class="pill bad" style="padding:0 7px">${C.errors}</span>`:''):''}${k==='docs'?out(()=>{const n=driveOf(O()).docs.length;return n?`<span class="pill neutral" style="padding:0 7px">${n}</span>`:''}):''}</button>`}).join('');
   const locked=o.status==='Closed'&&!['hud','ledger','codes','settings','docs','audit','tracker','closeout'].includes(tab)&&!G;
   document.getElementById('app').innerHTML=`
-  <header class="top"><div class="brand"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="18" rx="3" fill="var(--accent)"/><path d="M6 9h8M6 13h5" stroke="var(--accent-fg)" stroke-width="2" stroke-linecap="round"/><path d="M13.5 15.5l2 2 3.5-4" fill="none" stroke="var(--accent-fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><b>The Closing Desk</b><span>Title & escrow</span></div>
+  <header class="top"><div class="brand"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="3" width="20" height="18" rx="3" fill="var(--accent)"/><path d="M6 9h8M6 13h5" stroke="var(--accent-fg)" stroke-width="2" stroke-linecap="round"/><path d="M13.5 15.5l2 2 3.5-4" fill="none" stroke="var(--accent-fg)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><b>The Closing Desk</b>${out(()=>esc(CFG.firm.name||'Title & escrow'),'span')}</div>
    <div class="filebar">${out(()=>{const n=FILES().reduce((a,x)=>a+flagsOf(x).length,0);return `<button class="b bell" data-act="dashFilter" data-f="flagged" data-to="dash-notes">Alerts${n?` <span class="pill bad" style="padding:0 7px">${n}</span>`:''}</button>`},'span')}${G?'':`<button class="b primary" data-act="generate">Generate HUD-1</button><button class="b" data-act="dupOrder">Duplicate</button>
     ${UI.confirmDelete?`<span class="note">Delete file ${esc(o.fileNo||'Untitled')} permanently?</span><button class="b danger" data-act="doDelete">Delete</button><button class="b" data-act="cancelDelete">Keep</button>`:`<button class="b danger" data-act="askDelete">Delete</button>`}`}</div>
    ${G?'':out(C=>`<span class="pill ${o.status==='Closed'?'ok':'neutral'}">${esc(o.status)}</span><span class="pill ${Math.abs(C.fileBal)<0.005?'ok':'bad'}">${Math.abs(C.fileBal)<0.005?'Balanced':'Out of balance'} ${money(C.fileBal)}</span>`,'div','statusbox')}
@@ -1969,7 +1985,7 @@ const ACT={
     catch(e){msg('That text is not a closing-desk file. Paste the full text produced by "Copy this file\'s data".')}},
   loadSample(){const o=sampleOrder();logA(o,'File opened (test scenario)','status');DB.orders.push(o);DB.current=o.id;UI.tab='hud';save();render()},
 };
-Object.assign(ACT,DRIVE_ACT,DEED_ACT,LABEL_ACT,TEAM_ACT,CO_ACT);
+Object.assign(ACT,DRIVE_ACT,DEED_ACT,LABEL_ACT,TEAM_ACT,CO_ACT,FIRM_ACT);
 function msg(t){const m=document.getElementById('io-msg');if(m)m.textContent=t}
 function copyText(t,el){try{navigator.clipboard.writeText(t).catch(()=>selectEl(el))}catch(e){selectEl(el)}}
 function selectEl(el){if(!el)return;if(el.select){el.select();return}const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r)}
@@ -2005,7 +2021,7 @@ document.addEventListener('focusin',e=>{const t=e.target;if(t&&t.dataset&&t.data
   use('db').then(db=>{if(!db)return;REMOTE=db;SYNC='connecting';refresh();
     db.collection('orders').onSnapshot(onRemote,syncFail);
     db.doc('config/app').onSnapshot(sn=>{if(sn.exists){const c=sn.data()||{};CFG.driveRootId=String(c.driveRootId||'');CFG.driveRootTitle=String(c.driveRootTitle||'');
-      if(Array.isArray(c.staff)&&!cfgTimer)CFG.staff=JSON.parse(JSON.stringify(c.staff)).filter(x=>x&&typeof x==='object'&&x.id);CFG.schedule=c.schedule&&typeof c.schedule==='object'?{...c.schedule}:null;CFG.lastSent=c.lastSent||{};
+      if(Array.isArray(c.staff)&&!cfgTimer)CFG.staff=JSON.parse(JSON.stringify(c.staff)).filter(x=>x&&typeof x==='object'&&x.id);CFG.schedule=c.schedule&&typeof c.schedule==='object'?{...c.schedule}:null;CFG.lastSent=c.lastSent||{};if(c.firm&&typeof c.firm==='object'&&!cfgTimer)CFG.firm={...FIRM0,...c.firm};
       try{localStorage.setItem(KEY+'-cfg',JSON.stringify(CFG))}catch(e){}refreshNamesStaff();if(UI.tab==='team'&&!isTyping())render();else refresh()}},()=>{});
   }).catch(()=>{});
   use('mcp').then(m=>{MCP=m;if(MCP&&UI.tab==='docs')render();else refresh()}).catch(()=>{});
