@@ -244,6 +244,9 @@ tr.hl td{background:var(--accent-soft)}
 .chips.sm{margin-top:3px} .chips.sm .lchip{font-size:10px;padding:1px 7px}
 .deedpaper{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:#fff}
 .deedpaper .deed{min-width:620px}
+.deedpaper .dtop{position:relative;border-bottom:1px dashed #9aa8bb;background:repeating-linear-gradient(135deg,rgba(28,77,140,.04) 0 8px,transparent 8px 16px)}
+.deedpaper .dtop::after{content:"3 in. top margin reserved for the Register of Deeds";position:absolute;bottom:6px;left:0;right:0;text-align:center;font:11px var(--sans);color:#6b7686}
+.deedpaper .dexec{outline:1px dashed #c9d2dd;outline-offset:6px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -1144,6 +1147,7 @@ function deedDoc(o,C){const d=o.deed,P=o.property;
   const ack=ent?`<p>I certify that the following person personally appeared before me this day, showing satisfactory evidence of identity, and acknowledged the due execution and authority to execute the foregoing instrument on behalf of ${esc(d.entityName||'the entity')}, as its ${esc(d.signerTitle||'authorized representative')}: ${signers}.</p>`
     :`<p>I, <span class="blank" style="min-width:24ch"></span>, a Notary Public of the County of <span class="blank" style="min-width:14ch"></span> and State aforesaid, certify that ${signers} personally appeared before me this day and acknowledged the due execution of the foregoing instrument.</p>`;
   return `<div class="deed" id="deed-doc">
+  <div class="dtop" aria-hidden="true"></div>
   <h3>NORTH CAROLINA GENERAL WARRANTY DEED</h3>
   <table class="dhead"><tr><td>Excise Tax: <b>${exc?money(exc).replace('.00',''):'$'+'<span class="blank" style="min-width:8ch"></span>'}</b></td><td>Parcel Identifier No. ${B(P.parcel,18)}</td></tr>
   <tr><td colspan="2">Verified by <span class="blank" style="min-width:14ch"></span> County on the <span class="blank" style="min-width:5ch"></span> day of <span class="blank" style="min-width:12ch"></span>, 20<span class="blank" style="min-width:4ch"></span> &nbsp; By: <span class="blank" style="min-width:16ch"></span></td></tr>
@@ -1162,15 +1166,17 @@ function deedDoc(o,C){const d=o.deed,P=o.property;
   <p>TO HAVE AND TO HOLD the aforesaid lot or parcel of land and all privileges and appurtenances thereto belonging to the Grantee in fee simple.</p>
   <p>And the Grantor covenants with the Grantee, that Grantor is seized of the premises in fee simple, has the right to convey the same in fee simple, that title is marketable and free and clear of all encumbrances, and that Grantor will warrant and defend the title against the lawful claims of all persons whomsoever, other than the following exceptions:</p>
   <p>${esc(d.exceptions||'')}</p>
+  <div class="dexec">
   <p>IN WITNESS WHEREOF, the Grantor has duly executed the foregoing as of the day and year first above written.</p>
   <div class="dsigs">${sig}</div>
   <p class="dstate">STATE OF ${ackSt||'<span class="blank" style="min-width:14ch"></span>'} &nbsp;&nbsp;&nbsp; COUNTY OF ${ackCo||'<span class="blank" style="min-width:14ch"></span>'}</p>
   ${ack}
   <p>Witness my hand and official stamp or seal, this <span class="blank" style="min-width:5ch"></span> day of <span class="blank" style="min-width:12ch"></span>, 20<span class="blank" style="min-width:4ch"></span>.</p>
   <div class="dsigs"><div class="dsig"><div class="dl"><span class="blank" style="min-width:30ch"></span></div><div>Notary Public &nbsp; Printed name: <span class="blank" style="min-width:18ch"></span></div><div>My commission expires: <span class="blank" style="min-width:14ch"></span> &nbsp; (Official seal)</div></div></div>
+  </div>
   <p class="small dfoot">File ${esc(o.fileNo||'')}${d.version?` · Deed v${d.version} generated ${esc(d.generated)}`:' · Draft'}</p>
  </div>`}
-const DEED_CSS='.deed{font:12.5px/1.55 Tinos,"Times New Roman",Times,serif;color:#111;background:#fff;max-width:760px;margin:0 auto;padding:34px 44px}.deed h3{text-align:center;font-size:16px;letter-spacing:.04em;margin:0 0 14px}.deed table{border-collapse:collapse;width:100%;margin:0 0 12px}.deed td,.deed th{border:1px solid #333;padding:4px 7px;vertical-align:top;text-align:left}.deed .dparties th{width:50%;letter-spacing:.06em}.deed p{margin:0 0 10px;text-align:justify}.deed .small{font-size:11px}.deed .dlegal{border:1px solid #999;padding:8px 10px;margin:0 0 10px;white-space:normal}.deed .blank{display:inline-block;border-bottom:1px solid #111;height:1em;vertical-align:-2px}.deed .dsigs{display:flex;flex-wrap:wrap;gap:16px 40px;margin:18px 0 16px}.deed .dsig{min-width:280px}.deed .dl{margin-top:22px}.deed .dstate{margin-top:20px;font-weight:700}.deed .dfoot{color:#555;margin-top:20px;border-top:1px solid #ccc;padding-top:6px}';
+const DEED_CSS='@page{size:letter;margin:0.5in}@page:first{margin-top:3in}.deed{font:12.5px/1.55 Tinos,"Times New Roman",Times,serif;color:#111;background:#fff;max-width:7.5in;margin:0 auto;padding:0 0.5in 0.5in}.deed .dtop{height:3in}.deed .dexec{break-inside:avoid;page-break-inside:avoid}@media print{.deed{padding:0;max-width:none}.deed .dtop{display:none}}.deed h3{text-align:center;font-size:16px;letter-spacing:.04em;margin:0 0 14px}.deed table{border-collapse:collapse;width:100%;margin:0 0 12px}.deed td,.deed th{border:1px solid #333;padding:4px 7px;vertical-align:top;text-align:left}.deed .dparties th{width:50%;letter-spacing:.06em}.deed p{margin:0 0 10px;text-align:justify}.deed .small{font-size:11px}.deed .dlegal{border:1px solid #999;padding:8px 10px;margin:0 0 10px;white-space:normal}.deed .blank{display:inline-block;border-bottom:1px solid #111;height:1em;vertical-align:-2px}.deed .dsigs{display:flex;flex-wrap:wrap;gap:16px 40px;margin:18px 0 16px}.deed .dsig{min-width:280px}.deed .dl{margin-top:22px}.deed .dstate{margin-top:20px;font-weight:700}.deed .dfoot{color:#555;margin-top:20px;border-top:1px solid #ccc;padding-top:6px}';
 const deedFileHtml=(o,C)=>`<!doctype html><html><head><meta charset="utf-8"><title>Deed ${esc(o.fileNo||'')}</title><style>body{margin:0;background:#fff}${DEED_CSS}</style></head><body>${deedDoc(o,C)}</body></html>`;
 const DEED_ACT={
   deedGenerate(){const o=O();const d=o.deed;d.version=(d.version||0)+1;d.generated=new Date().toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'numeric',minute:'2-digit'});
