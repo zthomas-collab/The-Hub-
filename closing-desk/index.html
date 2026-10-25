@@ -64,7 +64,8 @@ nav.rail button:hover{background:var(--side-line)}
 nav.rail button[aria-current="true"]{background:var(--side-hi);color:#fff;font-weight:600}
 nav.rail button:focus-visible{outline:2px solid var(--side-hi);outline-offset:-2px}
 nav.rail button.home{padding-left:14px;font-weight:600}
-nav.rail .flow{font-size:13px;font-weight:700;color:#fff;background:var(--side-band);padding:8px 14px;margin-top:6px}
+nav.rail .flow{font-size:13px;font-weight:700;color:#fff;background:var(--side-band);padding:8px 14px;margin-top:6px;font-family:var(--mono)}
+nav.rail .subflow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--side-muted);padding:8px 14px 2px}
 .side-foot{margin-top:auto;padding:12px 14px;font-size:12px;color:var(--side-muted);border-top:1px solid var(--side-line);display:flex;flex-direction:column;gap:4px}
 .side-foot .row{display:flex;justify-content:space-between;gap:8px}
 .side-foot i{font-style:normal;color:var(--side-fg)}
@@ -94,7 +95,7 @@ main{min-width:0;padding-block:20px 60px;padding-left:max(16px,env(safe-area-ins
   .side-sec{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
   .side-list{max-height:180px}
   nav.rail{flex-direction:row;overflow-x:auto;padding:6px max(16px,env(safe-area-inset-left,0px))}
-  nav.rail .flow{display:none} nav.rail button{white-space:nowrap;padding:8px 12px;border-radius:6px}
+  nav.rail .flow,nav.rail .subflow{display:none} nav.rail button{white-space:nowrap;padding:8px 12px;border-radius:6px}
   .side-foot{display:none}
 }
 h1{font-size:22px;letter-spacing:-.015em;margin:0 0 4px;text-wrap:balance}
@@ -194,6 +195,41 @@ pre.merge{white-space:pre-wrap;background:var(--paper);color:var(--ink);border:1
   .top,nav.rail,.noprint{display:none!important} .shell{display:block} main{padding:0}
   .hud{border:0;box-shadow:none;page-break-after:always;width:100%} body{background:#fff}
 }
+button.tile{all:unset;box-sizing:border-box;cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:block;min-width:0}
+button.tile:hover{border-color:var(--accent)} button.tile:focus-visible{outline:2px solid var(--accent)}
+button.tile[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+button.tile.bad{border-color:var(--bad);background:var(--bad-bg)} button.tile.warn{border-color:color-mix(in srgb,var(--warn) 60%,var(--line));background:var(--warn-bg)}
+.tile .s{font-size:12px;color:var(--muted);margin-top:2px}
+#dash-tiles-inner{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.mini input.due-in{width:100%}
+.tl{min-width:760px} .tl-head,.tl-row{display:grid;grid-template-columns:190px minmax(0,1fr);align-items:stretch}
+.tl-ticks{position:relative;height:24px;border-bottom:1px solid var(--line)}
+.tl-ticks span{position:absolute;transform:translateX(-50%);font:11px var(--mono);color:var(--muted);top:4px;white-space:nowrap}
+.tl-ticks span.now{color:var(--bad);font-weight:600}
+.tl-row{border-bottom:1px solid var(--line)}
+.tl-name{all:unset;cursor:pointer;padding:6px 10px 6px 0;display:grid;min-width:0}
+.tl-name b{font:600 12px var(--mono)} .tl-name small{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-name:hover b{color:var(--accent)} .tl-name:focus-visible{outline:2px solid var(--accent)}
+.tl-track{position:relative;min-height:38px;background:repeating-linear-gradient(90deg,transparent 0 calc(100%/7 - 1px),var(--line) calc(100%/7 - 1px) calc(100%/7))}
+.mk{position:absolute;top:14px;width:10px;height:10px;border-radius:50%;transform:translateX(-50%);box-shadow:0 0 0 2px var(--surface)}
+.mk.done{background:var(--ok)} .mk.late{background:var(--bad)} .mk.soon{background:var(--warn)} .mk.todo{background:var(--muted)}
+.cl{position:absolute;top:12px;width:13px;height:13px;background:var(--accent);transform:translateX(-50%) rotate(45deg);box-shadow:0 0 0 2px var(--surface)}
+.today{position:absolute;top:0;bottom:0;width:2px;background:var(--bad);opacity:.55;transform:translateX(-1px)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+.legend i.dia{border-radius:0;transform:rotate(45deg);background:var(--accent)}
+.feed{display:flex;flex-direction:column;max-height:440px;overflow-y:auto}
+.ni{all:unset;cursor:pointer;display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:start;padding:9px 8px;border-bottom:1px solid var(--line);font-size:13px}
+.ni:hover{background:var(--surface-2)} .ni:focus-visible{outline:2px solid var(--accent)}
+.ni small{display:block;color:var(--muted)} .ni .when{font:12px var(--mono);color:var(--muted);white-space:nowrap}
+.sv{width:9px;height:9px;border-radius:50%;margin-top:5px} .sv.error{background:var(--bad)} .sv.warn{background:var(--warn)} .sv.info{background:var(--accent)} .sv.ok{background:var(--ok)}
+.flagfile{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.flagfile .fl{grid-column:1/-1;display:flex;flex-direction:column;gap:4px}
+.flaglink{all:unset;cursor:pointer;display:flex;gap:8px;align-items:baseline;font-size:13px;color:var(--fg)}
+.flaglink:hover{color:var(--accent)} .flaglink:focus-visible{outline:2px solid var(--accent)}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.bell{display:inline-flex;gap:6px;align-items:center}
+tr.hl td{background:var(--accent-soft)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -204,7 +240,8 @@ pre.merge{white-space:pre-wrap;background:var(--paper);color:var(--ink);border:1
 const KEY='hub-closing-desk-v1';
 const ROLES=['Buyer','Seller','Lender','Settlement Agent','Title Underwriter','Listing Broker','Selling Broker','Mortgage Payoff Lender','HOA','Tax Collector','Clerk / Recorder','Appraiser','Surveyor','Insurance Agent','Attorney','Other'];
 const LOAN_TYPES=['FHA','RHS','Conv. Unins.','VA','Conv. Ins.'];
-const TABS=[['order','Order & property','File set up'],['contacts','Contacts','File set up'],['prorations','Taxes & prorations','Escrow'],['charges','Settlement charges','Escrow'],['payoffs','Payoffs & credits','Escrow'],['ledger','Trust ledger','Escrow'],['hud','HUD-1 statement','Closing'],['codes','Field codes & merge','Closing'],['docs','Documents · Drive','General'],['settings','Rates & settings','General']];
+const GLOBAL_TABS=[['dash','Dashboard'],['crm','Contacts directory']];
+const TABS=[['order','Order & property','File set up'],['contacts','Contacts','File set up'],['tracker','Closing tracker','File set up'],['prorations','Taxes & prorations','Escrow'],['charges','Settlement charges','Escrow'],['payoffs','Payoffs & credits','Escrow'],['ledger','Trust ledger','Escrow'],['hud','HUD-1 statement','Closing'],['codes','Field codes & merge','Closing'],['docs','Documents · Drive','General'],['audit','Audit log','General'],['settings','Rates & settings','General']];
 const DRIVE='Google Drive';
 
 /* ---------- utilities ---------- */
@@ -230,6 +267,78 @@ function words(n){
   while(x>0){const ch=x%1000;if(ch)parts.unshift(h(ch)+sc[i]);x=Math.floor(x/1000);i++}
   const w=parts.join(' ');return w.charAt(0).toUpperCase()+w.slice(1)+' and '+String(c).padStart(2,'0')+'/100 dollars';
 }
+
+/* ---------- milestones, flags, audit ---------- */
+const MS_TEMPLATE=[
+  {key:'title_order',label:'Title search ordered',from:'open',days:1},
+  {key:'title_back',label:'Title search / commitment back',from:'open',days:10,cap:-14},
+  {key:'buyer_sheet',label:'Buyer info sheet back',from:'open',days:5,cap:-14},
+  {key:'seller_sheet',label:'Seller info sheet back',from:'open',days:5,cap:-14},
+  {key:'payoff',label:'Payoff letter received',from:'close',days:-7},
+  {key:'survey',label:'Survey received',from:'close',days:-10},
+  {key:'hoa',label:'HOA estoppel received',from:'close',days:-10},
+  {key:'lender_pkg',label:'Lender closing instructions received',from:'close',days:-3},
+  {key:'hud_approved',label:'HUD-1 generated and balanced',from:'close',days:-1,auto:true},
+  {key:'closing',label:'Closing held',from:'close',days:0,auto:true},
+  {key:'funded',label:'Funded and disbursed',from:'close',days:0,auto:true},
+  {key:'recorded',label:'Deed and mortgage recorded',from:'close',days:3}];
+const MS={};MS_TEMPLATE.forEach(t=>MS[t.key]=t);
+const MS_MATCH={title_back:/title\s*(search|commitment|report|exam)|\bcommitment\b|\bo\s*&\s*e\b/i,buyer_sheet:/buyer.{0,15}(info|information|questionnaire)/i,
+  seller_sheet:/seller.{0,15}(info|information|questionnaire)/i,payoff:/payoff/i,survey:/\bsurvey\b/i,hoa:/estoppel|\bhoa\b/i,lender_pkg:/(lender|closing)\s*(closing\s*)?(instructions|package)/i};
+const MS_AUTO={hud_approved:(o,C)=>!!o.hudVersion&&!C.errors,closing:o=>o.status==='Closed',
+  funded:(o,C)=>C.disb.length>0&&C.disb.every(d=>o.issued[d.key])&&Math.abs(C.fileBal)<0.005};
+const newMs=t=>({key:t.key,label:t.label,status:'open',due:'',requested:'',received:'',note:'',docId:''});
+function norm(o){if(!o)return o;if(!o.openedDate)o.openedDate=o.created||today();
+  if(!Array.isArray(o.milestones))o.milestones=MS_TEMPLATE.map(newMs);
+  else MS_TEMPLATE.forEach(t=>{if(!o.milestones.some(m=>m.key===t.key))o.milestones.push(newMs(t))});
+  if(!Array.isArray(o.audit))o.audit=[];if(!o.drive)o.drive={folderId:'',folderTitle:'',folderUrl:'',docs:[]};return o}
+function msDue(o,m){if(m.due)return dnum(m.due);const t=MS[m.key];if(!t)return null;const cl=dnum(o.settlementDate);
+  const base=t.from==='open'?dnum(o.openedDate||o.created):cl;if(base==null)return null;let d=base+t.days;if(t.cap!=null&&cl!=null)d=Math.min(d,cl+t.cap);return d}
+const msAuto=(o,C,m)=>!!(MS_AUTO[m.key]&&MS_AUTO[m.key](o,C));
+const msDone=(o,C,m)=>m.status==='received'||m.status==='waived'||msAuto(o,C,m);
+let MEMO=new Map();const CC=o=>{let c=MEMO.get(o);if(!c){c=compute(o);MEMO.set(o,c)}return c};
+function flagsOf(o){norm(o);const F=[];if(o.status==='Closed')return F;const C=CC(o),now=dnum(today()),cl=dnum(o.settlementDate);
+  if(cl==null)F.push({sev:'warn',msg:'No closing date set',tab:'order',due:null});
+  else if(cl<now)F.push({sev:'error',msg:`Closing date ${dstr(cl)} has passed and the file is still open`,tab:'hud',due:cl});
+  else if(cl-now<=5&&C.errors)F.push({sev:'error',msg:`Closes ${cl===now?'today':'in '+(cl-now)+' day'+(cl-now>1?'s':'')} with ${C.errors} HUD-1 issue${C.errors>1?'s':''}`,tab:'hud',due:cl});
+  for(const m of o.milestones){if(msDone(o,C,m))continue;const d=msDue(o,m);if(d==null)continue;
+    if(d<now)F.push({sev:'error',msg:`${m.label}: ${now-d} day${now-d>1?'s':''} overdue (due ${dstr(d)})`,tab:'tracker',due:d,key:m.key});
+    else if(d-now<=3)F.push({sev:'warn',msg:`${m.label}: due ${d===now?'today':'in '+(d-now)+' day'+(d-now>1?'s':'')} (${dstr(d)})`,tab:'tracker',due:d,key:m.key})}
+  return F}
+let ME='',USER=null;const NAMES={};
+const whoName=id=>!id?'—':id===ME?'You':(NAMES[id]||'Someone');
+function logA(o,msg,kind='edit'){norm(o);o.audit.unshift({at:Date.now(),by:ME||'',msg:String(msg).slice(0,300),kind});if(o.audit.length>400)o.audit.length=400}
+function autoMatch(o,files){norm(o);let n=0;const own=new Set(driveOf(o).docs.filter(d=>/^(HUD-1|Merged)/.test(d.kind)).map(d=>d.id));
+  for(const f of files||[]){if(own.has(f.id))continue;const t=f.title||'';
+    for(const m of o.milestones){const re=MS_MATCH[m.key];if(!re||m.status==='received'||m.status==='waived'||!re.test(t))continue;
+      Object.assign(m,{status:'received',received:today(),auto:true,docId:f.id,note:`Auto: found “${t}” in Drive`});
+      if(!driveOf(o).docs.some(x=>x.id===f.id))addDoc(o,f,m.label);
+      logA(o,`Automation: ${m.label} marked received (found “${t}” in Drive)`,'auto');n++}}
+  return n}
+const FIELD_TOP={fileNo:'File number',loanNo:'Loan number',miCase:'MI case number',loanType:'Loan type',settlementDate:'Settlement date',disbursementDate:'Disbursement date',
+  placeOfSettlement:'Place of settlement',salesPrice:'Sales price',personalProperty:'Personal property',loanAmount:'Loan amount',interestRate:'Interest rate',existingLoan:'Existing loan',
+  earnestMoney:'Earnest money',earnestHolder:'Deposit holder',openedDate:'Open date'};
+const SUBF={b:'borrower amount',s:'seller amount',poc:'P.O.C. amount',pocBy:'P.O.C. paid by',payeeId:'payee',desc:'description',party:'paid by',override:'override',months:'months',monthly:'monthly amount',years:'years',
+  amount:'amount',annual:'annual amount',from:'period from',to:'period to',status:'status',kind:'type',label:'label',type:'type',pct:'share %',contactId:'broker',date:'date',method:'method',memo:'memo',
+  due:'due date',requested:'requested date',received:'received date',note:'note',docId:'document',name:'name',address:'address',phone:'phone',email:'email',ref:'reference',role:'role'};
+function fieldLabel(path){const o=O(),p=path.split('.');const sub=f=>SUBF[f]||f;
+  if(FIELD_TOP[path])return FIELD_TOP[path];if(p[0]==='property')return 'Property '+sub(p[1]).replace('street','street address');
+  const row=o[p[0]]&&o[p[0]][+p[1]];
+  switch(p[0]){case 'items':return row?`Line ${row.line}${row.sub?' '+row.sub:''} ${sub(p[2])}`:'Charge';
+    case 'contacts':return row?`Contact ${row.name||row.role} ${sub(p[2])}`:'Contact';case 'prorations':return row?`Proration (${row.kind}) ${sub(p[2])}`:'Proration';
+    case 'payoffs':return `Payoff ${sub(p[2])}`;case 'adjustments':return `Credit/adjustment ${sub(p[2])}`;case 'receipts':return `Receipt ${sub(p[2])}`;
+    case 'milestones':return row?`Tracker: ${row.label} ${sub(p[2])}`:'Tracker';case 'settings':return 'Setting '+p.slice(1).join(' ');
+    case 'commission':return p[1]==='splits'?`Commission split ${sub(p[3])}`:'Commission '+sub(p[1])}
+  return path}
+function valDisp(path,v,isMoney){if(v==='')return '(blank)';const o=O();if(isMoney)return money(num(v));
+  if(/(payeeId|contactId|earnestHolder)$/.test(path)){if(v==='agent')return 'Settlement agent';const c=o.contacts.find(x=>x.id===v);return c?(c.name||c.role):'(none)'}
+  if(/docId$/.test(path)){const d=driveOf(o).docs.find(x=>x.id===v);return d?d.title:'(none)'}
+  if(/^\d{4}-\d{2}-\d{2}$/.test(v))return fmtDate(v);return String(v).length>60?String(v).slice(0,57)+'…':String(v)}
+function directory(){const map=new Map();
+  for(const o of FILES()){norm(o);for(const c of o.contacts){const nm=(c.name||'').trim();if(!nm)continue;const k=nm.toLowerCase();let e=map.get(k);
+    if(!e){e={key:k,name:nm,roles:new Set(),email:'',phone:'',address:'',ref:'',files:[]};map.set(k,e)}
+    e.roles.add(c.role);['email','phone','address','ref'].forEach(f=>{if(!e[f]&&c[f])e[f]=c[f]});if(!e.files.some(x=>x.o===o))e.files.push({o,role:c.role})}}
+  return [...map.values()].sort((a,b)=>b.files.length-a.files.length||a.name.localeCompare(b.name))}
 
 /* ---------- order model ---------- */
 function defSettings(){return{
@@ -288,7 +397,7 @@ function newOrder(){
       {id:uid(),kind:'assess',label:'',annual:0,from:'',to:'',status:'paid',note:''}],
     payoffs:[{id:uid(),desc:'Payoff of first mortgage loan',payeeId:'',amount:0},{id:uid(),desc:'Payoff of second mortgage loan',payeeId:'',amount:0}],
     adjustments:[],items,settings:defSettings(),
-    receipts:[],issued:{},nextCheck:1001,nextWire:1,drive:{folderId:'',folderTitle:'',folderUrl:'',docs:[]},
+    receipts:[],issued:{},nextCheck:1001,nextWire:1,openedDate:today(),milestones:MS_TEMPLATE.map(newMs),audit:[],drive:{folderId:'',folderTitle:'',folderUrl:'',docs:[]},
     mergeTemplate:'CLOSING INSTRUCTIONS\nFile {{Order.FileNumber}}  |  Settlement date {{Order.ClosingDate}}\n\nProperty: {{Order.Property.Address}}\nParcel ID: {{Order.Property.ParcelID}}\nLegal: {{Order.Property.Legal}}\n\nBuyer(s): {{Order.Buyer.Names}}\nSeller(s): {{Order.Seller.Names}}\nLender: {{Order.Lender.Name}}  |  Loan amount {{Order.Loan.Amount}}\n\nCash due from borrower (line 303): {{HUD.L303}}\nCash due to seller (line 603): {{HUD.L603}}\nTrust ledger balance: {{Ledger.FileBalance}}'
   };
 }
@@ -317,7 +426,8 @@ function load(){
   const o=newOrder();return{orders:[o],current:o.id};
 }
 let DB=load();
-const O=()=>DB.orders.find(x=>x.id===DB.current)||DB.orders[0];
+const FILES=()=>DB.orders.filter(o=>o.updated);
+const O=()=>norm(DB.orders.find(x=>x.id===DB.current)||DB.orders[0]);
 /* Shared store: every saved file lives in the artifact database (collection "orders"), cached in this browser. */
 let REMOTE=null,MCP=null,DL=null,SYNC='local',SYNCMSG='';
 const pending=new Map(),seenRemote=new Set();let migrated=false,writeChain=Promise.resolve();
@@ -345,12 +455,14 @@ function onRemote(snap){
   DB.orders.forEach(l=>{if(ids.has(l.id))return;if(seenRemote.has(l.id)&&!pending.has(l.id))return;next.push(l);if(!migrated&&l.updated)queueRemote(l)});
   migrated=true;if(!next.length)next.push(newOrder());
   DB.orders=next;if(!next.find(x=>x.id===DB.current)){DB.current=next[0].id;replaced=true}
-  saveLocal();if(replaced&&!isTyping())render();else refresh();
+  saveLocal();refreshNames();if(replaced&&!isTyping())render();else refresh();
 }
 function saveCfg(){try{localStorage.setItem(KEY+'-cfg',JSON.stringify(CFG))}catch(e){}
   if(REMOTE)REMOTE.doc('config/app').set({...CFG}).catch(syncFail)}
 function pushRecent(id){RECENT=[id,...RECENT.filter(x=>x!==id)].slice(0,12);try{localStorage.setItem(KEY+'-recent',JSON.stringify(RECENT))}catch(e){}}
 const driveOf=o=>o.drive||(o.drive={folderId:'',folderTitle:'',folderUrl:'',docs:[]});
+function refreshNames(){if(!USER)return;const ids=[...new Set(DB.orders.flatMap(o=>(o.audit||[]).map(a=>a.by)).filter(id=>id&&id!==ME&&!(id in NAMES)))].slice(0,64);
+  if(!ids.length)return;USER.profiles(ids).then(ps=>{ids.forEach(id=>{NAMES[id]=(ps&&ps[id]&&ps[id].name)||''});refresh()}).catch(()=>{})}
 
 /* ---------- calculation engine ---------- */
 const DEF={101:'Contract sales price',102:'Personal property',103:'Settlement charges to borrower (line 1400)',106:'City/town taxes',107:'County taxes',108:'Assessments',
@@ -559,13 +671,13 @@ function merge(o,C){const map={};FIELDS.forEach(([k,,f])=>map[k]=f(o,C)??'');
   return String(o.mergeTemplate||'').replace(/\{\{\s*([\w.]+)\s*\}\}/g,(m,k)=>k in map?(map[k]||'____'):`[unknown field ${k}]`)}
 
 /* ---------- view helpers ---------- */
-let OUT=[];let UI={tab:'dash',confirmDelete:false,check:null,io:'',q:'',dq:'',dstatus:'open',hudMsg:''};
+let OUT=[];let UI={tab:'dash',confirmDelete:false,check:null,io:'',q:'',dq:'',dfilter:'open',hudMsg:'',akind:'all',cq:'',crole:'all',crmOpen:''};
 let DRV={busy:'',msg:'',err:'',list:null,listFor:'',listAt:0,folders:null,results:null};
 const out=(fn,tag='span',cls='')=>{const i=OUT.push(fn)-1;return `<${tag}${cls?` class="${cls}"`:''} data-out="${i}"></${tag}>`};
 const fid=p=>'f-'+p.replace(/\./g,'-');
-function inp(path,{num:isNum=false,dec=2,type='text',ph='',cls=''}={}){
+function inp(path,{num:isNum=false,dec=2,type='text',ph='',cls='',attrs=''}={}){
   let v=getPath(O(),path);if(isNum)v=fmtIn(v,dec);
-  return `<input id="${fid(path)}" class="${cls}${isNum?' num':''}" type="${type}" data-bind="${path}"${isNum?` data-num="${dec}" inputmode="decimal"`:''} value="${esc(v??'')}"${ph?` placeholder="${esc(ph)}"`:''}>`}
+  return `<input id="${fid(path)}" class="${cls}${isNum?' num':''}" type="${type}" data-bind="${path}"${isNum?` data-num="${dec}" inputmode="decimal"`:''} value="${esc(v??'')}"${ph?` placeholder="${esc(ph)}"`:''}${attrs?' '+attrs:''}>`}
 function sel(path,opts,{re=false}={}){const v=String(getPath(O(),path)??'');
   return `<select id="${fid(path)}" data-bind="${path}"${re?' data-re="1"':''}>${opts.map(([val,l])=>`<option value="${esc(val)}"${String(val)===v?' selected':''}>${esc(l)}</option>`).join('')}</select>`}
 function chk(path,label){return `<label class="check"><input id="${fid(path)}" type="checkbox" data-bind="${path}" data-re="1"${getPath(O(),path)?' checked':''}> ${esc(label)}</label>`}
@@ -609,15 +721,18 @@ PANELS.order=()=>{const o=O();return `
 </aside></div>`};
 
 PANELS.contacts=()=>{const o=O();return `
-<h1>Contacts</h1><p class="lede">Every party on the file. Payee dropdowns on charges, payoffs and the ledger pull from this list, so a name typed here flows to every check and HUD line.</p>
+<h1>Contacts</h1><p class="lede">Every party on the file. Payee dropdowns on charges, payoffs and the ledger pull from this list, so a name typed here flows to every check and HUD line. Start typing a name that is on another file and pick it to copy that contact’s details from the directory.</p>
+<datalist id="crm-list">${directory().map(e=>`<option value="${esc(e.name)}">${esc([...e.roles].join(', '))}</option>`).join('')}</datalist>
 <section class="panel">
  ${o.contacts.map((c,i)=>`<div class="contact">
   ${fld('Role',sel(`contacts.${i}.role`,ROLES.map(r=>[r,r]),{re:true}))}
-  ${fld('Name',inp(`contacts.${i}.name`))}${fld('Address',inp(`contacts.${i}.address`))}${fld('Phone',inp(`contacts.${i}.phone`))}
+  ${fld('Name',inp(`contacts.${i}.name`,{attrs:'list="crm-list" autocomplete="off"'}))}${fld('Address',inp(`contacts.${i}.address`))}${fld('Phone',inp(`contacts.${i}.phone`))}
   ${fld('Email',inp(`contacts.${i}.email`))}${fld('Tax ID / account / ref',inp(`contacts.${i}.ref`))}
   <button class="x" data-act="delContact" data-id="${c.id}" aria-label="Remove contact" title="Remove contact">×</button>
   ${out(C=>{const d=C.disb.find(x=>x.payeeId===c.id);const n=o.items.filter(it=>it.payeeId===c.id).length;
-     return d?`Payee on ${d.refs.length} line(s): ${esc(d.refs.slice(0,4).join('; '))}${d.refs.length>4?'…':''} · disbursement ${money(d.amt)}`:n?`Assigned to ${n} charge line(s), currently $0.00`:'Not assigned to any charge'},'div','used')}
+     const others=c.name?directory().find(e=>e.key===c.name.trim().toLowerCase()):null;const n2=others?others.files.filter(f=>f.o!==o).length:0;
+     const tag=n2?` · also on ${n2} other file${n2>1?'s':''}`:'';
+     return (d?`Payee on ${d.refs.length} line(s): ${esc(d.refs.slice(0,4).join('; '))}${d.refs.length>4?'…':''} · disbursement ${money(d.amt)}`:n?`Assigned to ${n} charge line(s), currently $0.00`:'Not assigned to any charge')+tag},'div','used')}
  </div>`).join('')}
  <div class="row-actions"><select id="new-role" aria-label="Role for new contact">${ROLES.map(r=>`<option>${r}</option>`).join('')}</select>
   <button class="b" data-act="addContact">Add contact</button></div>
@@ -930,9 +1045,10 @@ function hay(o){return [o.fileNo,propAddr(o),o.property.county,o.property.parcel
 const matchQ=(o,q)=>String(q||'').toLowerCase().split(/\s+/).filter(Boolean).every(t=>hay(o).includes(t));
 function sideList(){
   const rank=id=>{const i=RECENT.indexOf(id);return i<0?99:i};
-  const list=DB.orders.filter(o=>matchQ(o,UI.q)).sort((a,b)=>rank(a.id)-rank(b.id)||(b.updated||0)-(a.updated||0));
-  if(!list.length)return `<p class="empty">No file matches “${esc(UI.q)}”.</p>`;
-  return list.slice(0,25).map(o=>`<button class="fi" data-act="openFile" data-id="${o.id}" aria-current="${o.id===DB.current&&UI.tab!=='dash'}">
+  const cur=DB.orders.find(o=>o.id===DB.current);const pool=FILES();if(cur&&!cur.updated&&!GLOBAL_TABS.some(t=>t[0]===UI.tab))pool.push(cur);
+  const list=pool.filter(o=>matchQ(o,UI.q)).sort((a,b)=>rank(a.id)-rank(b.id)||(b.updated||0)-(a.updated||0));
+  if(!list.length)return `<p class="empty">${UI.q?`No file matches “${esc(UI.q)}”.`:'No saved files yet. Click New file.'}</p>`;
+  return list.slice(0,25).map(o=>`<button class="fi" data-act="openFile" data-id="${o.id}" aria-current="${o.id===DB.current&&!GLOBAL_TABS.some(t=>t[0]===UI.tab)}">
     <b><span>${esc(o.fileNo||'Untitled file')}</span><span class="dot${o.status==='Closed'?' closed':''}" title="${esc(o.status)}"></span></b>
     <small>${esc(o.property.street||'No property address')}</small>
     <small>${esc([o.contacts.filter(c=>c.role==='Buyer'&&c.name).map(c=>c.name).join(' & '),fmtDate(o.settlementDate)].filter(Boolean).join(' · ')||'No buyer or closing date yet')}</small></button>`).join('')
@@ -941,7 +1057,7 @@ function sideList(){
 function syncFoot(){
   const st=SYNC==='synced'?['Shared store','Saved']:SYNC==='connecting'?['Shared store','Connecting…']:SYNC==='error'?['Shared store','Problem']:['Storage','This browser only'];
   return `<div class="row"><span>${st[0]}</span><i>${st[1]}</i></div>${SYNC==='error'?`<div>${esc(SYNCMSG)}</div>`:''}
-  <div class="row"><span>Google Drive</span><i>${MCP?'Available':'Not available here'}</i></div><div class="row"><span>Files</span><i>${DB.orders.length}</i></div>`;
+  <div class="row"><span>Google Drive</span><i>${MCP?'Available':'Not available here'}</i></div><div class="row"><span>Files</span><i>${FILES().length}</i></div>`;
 }
 function fileBand(){return out(C=>{const o=O();const city=[o.property.city,[o.property.state,o.property.zip].filter(Boolean).join(' ')].filter(Boolean).join(', ');
   return `<div class="band"><div class="band-tab">${esc(o.fileNo||'Untitled file')}</div><div class="band-grid">
@@ -952,40 +1068,132 @@ function fileBand(){return out(C=>{const o=O();const city=[o.property.city,[o.pr
   <div><span>Cash to seller</span><span style="all:unset;font-family:var(--mono)">${money(Math.max(0,C.L[603].amt))}</span></div>
   <button class="band-status ${C.errors?'bad':'ok'}" data-act="tab" data-tab="hud" data-to="hud-checks">${C.errors?`✕ ${C.errors} file issue${C.errors>1?'s':''}`:'✓ No file issues'}</button>
   </div></div>`},'div')}
+const DFILTERS=[['open','Open files'],['week','Closing this week'],['soon30','Closing in 30 days'],['flagged','Need attention'],['closedMonth','Closed this month'],['closed','All closed files'],['all','All files']];
+function dfilterFn(f){const now=dnum(today());const ym=today().slice(0,7);return o=>{const cl=dnum(o.settlementDate),open=o.status!=='Closed';
+  switch(f){case 'open':return open;case 'week':return open&&cl!=null&&cl>=now&&cl<=now+7;case 'soon30':return open&&cl!=null&&cl>=now&&cl<=now+30;
+    case 'flagged':return flagsOf(o).some(x=>x.sev==='error');case 'closedMonth':return !open&&String(o.closedAt||'').slice(0,7)===ym;case 'closed':return !open;default:return true}}}
+function notifications(){const items=[];const now=Date.now();
+  for(const o of FILES()){for(const f of flagsOf(o))items.push({...f,o});
+    for(const a of (norm(o).audit||[]))if(a.kind==='auto'&&now-a.at<7*864e5)items.push({sev:'info',msg:a.msg,o,tab:'tracker',at:a.at})}
+  const rank={error:0,warn:1,info:2};
+  return items.sort((x,y)=>rank[x.sev]-rank[y.sev]||((x.due??9e9)-(y.due??9e9))||((y.at||0)-(x.at||0)))}
+function timeline(orders,{back=7,days=49}={}){const now=dnum(today()),start=now-back,end=start+days;
+  const pct=d=>((Math.max(start,Math.min(end,d))-start)/(end-start)*100).toFixed(2);
+  let ticks='';for(let d=start;d<end;d+=7)ticks+=`<span style="left:${pct(d)}%">${dstr(d).slice(0,5)}</span>`;
+  const rows=orders.map(o=>{const C=CC(o);const cl=dnum(o.settlementDate);
+    const mk=o.milestones.map(m=>{const d=msDue(o,m);if(d==null||d<start||d>end)return '';const done=msDone(o,C,m);
+      const cls=done?'done':d<now?'late':d-now<=3?'soon':'todo';return `<i class="mk ${cls}" style="left:${pct(d)}%" title="${esc(m.label)} · due ${dstr(d)}${done?' · done':d<now?' · overdue':''}"></i>`}).join('');
+    const late=o.milestones.some(m=>!msDone(o,C,m)&&msDue(o,m)!=null&&msDue(o,m)<start);
+    return `<div class="tl-row"><button class="tl-name" data-act="openFile" data-id="${o.id}" data-tab="tracker"><b>${esc(o.fileNo||'Untitled')}</b><small>${esc(o.property.street||'No address')}${cl!=null?' · closes '+dstr(cl):' · no closing date'}</small></button>
+     <div class="tl-track">${late?`<i class="mk late" style="left:0.6%" title="Items overdue before this window"></i>`:''}${mk}${cl!=null&&cl>=start&&cl<=end?`<i class="cl" style="left:${pct(cl)}%" title="Closing ${dstr(cl)}"></i>`:''}<i class="today" style="left:${pct(now)}%" title="Today"></i></div></div>`}).join('');
+  return `<div class="scroll"><div class="tl"><div class="tl-head"><div class="note" style="align-self:end;padding-bottom:4px">Red line = today</div><div class="tl-ticks">${ticks}</div></div>${rows}</div></div>`}
+const dtile=(f,to,k,v,sub,cls='')=>`<button class="tile${cls?' '+cls:''}" data-act="dashFilter" data-f="${f}" data-to="${to}" aria-pressed="${UI.dfilter===f}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub}</div></button>`;
 PANELS.dash=()=>`
-<h1>Dashboard</h1><p class="lede">Every closing file in one place. Search by file number, address, parcel or any party's name, then open a file to work it.</p>
+<h1>Dashboard</h1><p class="lede">Open files, the closing schedule and everything that needs action. Click a tile to filter the files, or click any alert to jump straight to the screen that fixes it.</p>
 <div class="stack">
-${out(()=>{const all=DB.orders.map(o=>({o,C:compute(o)}));const now=dnum(today());
-  const open=all.filter(x=>x.o.status!=='Closed');const soon=open.filter(x=>{const d=dnum(x.o.settlementDate);return d!=null&&d>=now&&d<=now+14});
-  const attn=open.filter(x=>x.C.errors);const docs=all.reduce((a,x)=>a+driveOf(x.o).docs.length,0);const linked=all.filter(x=>driveOf(x.o).folderId).length;
-  return `<div class="tiles"><div class="tile"><div class="k">Open files</div><div class="v">${open.length}</div></div>
-  <div class="tile"><div class="k">Closing in 14 days</div><div class="v">${soon.length}</div></div>
-  <div class="tile ${attn.length?'bad':'ok'}"><div class="k">Need attention</div><div class="v">${attn.length}</div></div>
-  <div class="tile"><div class="k">Drive folders / documents</div><div class="v">${linked} / ${docs}</div></div></div>`},'div')}
-<section class="panel"><div class="panel-head"><h2>Files</h2><button class="b small primary" data-act="newOrder">New file</button></div>
- <div class="toolbar"><input id="dash-q" type="search" placeholder="Search files" aria-label="Search files" value="${esc(UI.dq)}">
-  <select id="dash-status" data-change="dashStatus" aria-label="Status">${[['open','Open files'],['closed','Closed files'],['all','All files']].map(([v,l])=>`<option value="${v}"${UI.dstatus===v?' selected':''}>${l}</option>`).join('')}</select></div>
- ${out(()=>{const rows=DB.orders.filter(o=>(UI.dstatus==='all'||(UI.dstatus==='closed')===(o.status==='Closed'))&&matchQ(o,UI.dq))
-   .sort((a,b)=>(dnum(a.settlementDate)??1e9)-(dnum(b.settlementDate)??1e9));
-  if(!rows.length)return `<p class="empty">${DB.orders.length?'No files match these filters.':'No files yet. Click New file to open your first order.'}</p>`;
-  return `<div class="scroll"><table class="t"><thead><tr><th>File</th><th>Property</th><th>Buyer / seller</th><th>Closing</th><th class="m">Cash from borrower</th><th class="m">Cash to seller</th><th>Status</th><th>Drive</th><th></th></tr></thead><tbody>
-  ${rows.map(o=>{const C=compute(o);const d=driveOf(o);return `<tr><td class="ln"><b>${esc(o.fileNo||'Untitled')}</b></td><td>${esc(propAddr(o)||'—')}</td>
+${out(()=>{const open=FILES().filter(o=>o.status!=='Closed');
+  const wk=open.filter(dfilterFn('week')).length,m30=open.filter(dfilterFn('soon30')).length,flag=FILES().filter(dfilterFn('flagged')).length;
+  const due=FILES().reduce((a,o)=>a+flagsOf(o).filter(f=>f.sev==='warn').length,0);const over=FILES().reduce((a,o)=>a+flagsOf(o).filter(f=>f.sev==='error'&&f.tab==='tracker').length,0);
+  const cm=FILES().filter(dfilterFn('closedMonth')).length;
+  return `<div class="tiles" id="dash-tiles-inner">${dtile('open','dash-files','Open files',open.length,`${FILES().length} file${FILES().length===1?'':'s'} in total`)}
+  ${dtile('week','dash-files','Closing this week',wk,'Next 7 days')}${dtile('soon30','dash-timeline','Closing in 30 days',m30,'See the schedule')}
+  ${dtile('flagged','dash-flags','Need attention',flag,`${over} overdue item${over===1?'':'s'}`,flag?'bad':'')}
+  ${dtile('flagged','dash-notes','Coming due',due,'Due in the next 3 days',due?'warn':'')}${dtile('closedMonth','dash-files','Closed this month',cm,new Date().toLocaleString('en-US',{month:'long'}))}</div>`},'div','dash-tiles-wrap')}
+<section class="panel" id="dash-flags"><div class="panel-head"><h2>Files that need attention</h2>${out(()=>{const n=FILES().filter(dfilterFn('flagged')).length;return n?`<span class="pill bad">${n} flagged</span>`:'<span class="pill ok">All clear</span>'})}</div>
+ ${out(()=>{const fl=FILES().map(o=>({o,f:flagsOf(o).filter(x=>x.sev==='error')})).filter(x=>x.f.length).sort((a,b)=>(dnum(a.o.settlementDate)??9e9)-(dnum(b.o.settlementDate)??9e9));
+  return fl.length?fl.map(({o,f})=>`<div class="flagfile"><div><b style="font-family:var(--mono)">${esc(o.fileNo||'Untitled')}</b> · ${esc(propAddr(o)||'No address')}<br><span class="note">Closing ${esc(fmtDate(o.settlementDate)||'not set')} · ${esc(CC(o).names('Buyer')||'No buyer')}</span></div>
+   <button class="b small primary" data-act="openFile" data-id="${o.id}" data-tab="${f[0].tab}">Open file</button>
+   <div class="fl">${f.map(x=>`<button class="flaglink" data-act="openFile" data-id="${o.id}" data-tab="${x.tab}"><span class="sv error"></span><span>${esc(x.msg)} →</span></button>`).join('')}</div></div>`).join('')
+   :'<p class="empty">No file has an overdue item, a passed closing date or an unbalanced HUD-1 near closing.</p>'},'div')}
+</section>
+<section class="panel" id="dash-timeline"><div class="panel-head"><h2>Closing schedule</h2><div class="legend"><span><i class="dia"></i>Closing</span><span><i style="background:var(--ok)"></i>Done</span><span><i style="background:var(--warn)"></i>Due in 3 days</span><span><i style="background:var(--bad)"></i>Overdue</span><span><i style="background:var(--muted)"></i>Upcoming</span></div></div>
+ ${out(()=>{const rows=FILES().filter(o=>o.status!=='Closed').sort((a,b)=>(dnum(a.settlementDate)??9e9)-(dnum(b.settlementDate)??9e9));
+  return rows.length?timeline(rows)+`<p class="note">Last week through the next six weeks. Hover a dot for the item; click a file to open its tracker.</p>`:'<p class="empty">No open files. Click New file to start one.</p>'},'div')}
+</section>
+<div class="two">
+<section class="panel" id="dash-notes"><div class="panel-head"><h2>Notifications</h2>${out(()=>{const n=notifications();return `<span class="note">${n.filter(x=>x.sev!=='info').length} alerts · ${n.filter(x=>x.sev==='info').length} automation updates</span>`})}</div>
+ ${out(()=>{const n=notifications().slice(0,40);return n.length?n.map(x=>`<button class="ni" data-act="openFile" data-id="${x.o.id}" data-tab="${x.tab}"><span class="sv ${x.sev}"></span><span>${esc(x.msg)}<small>${esc(x.o.fileNo||'Untitled')} · ${esc(x.o.property.street||'No address')}</small></span><span class="when">${x.at?esc(new Date(x.at).toLocaleDateString('en-US',{month:'short',day:'numeric'})):x.due!=null?esc(dstr(x.due).slice(0,5)):''}</span></button>`).join(''):'<p class="empty">No alerts. Everything on open files is on track.</p>'},'div','feed')}
+</section>
+<section class="panel"><div class="panel-head"><h2>Coming up · next 14 days</h2></div>
+ ${out(()=>{const now=dnum(today());const it=[];for(const o of FILES()){if(o.status==='Closed')continue;const C=CC(o);
+   for(const m of norm(o).milestones){const d=msDue(o,m);if(d==null||d<now||d>now+14||msDone(o,C,m))continue;it.push({d,o,label:m.label,tab:'tracker'})}
+   const cl=dnum(o.settlementDate);if(cl!=null&&cl>=now&&cl<=now+14)it.push({d:cl,o,label:'Closing',tab:'hud',cl:true})}
+  it.sort((a,b)=>a.d-b.d||(b.cl?1:0)-(a.cl?1:0));
+  return it.length?`<div class="feed">${it.slice(0,40).map(x=>`<button class="ni" data-act="openFile" data-id="${x.o.id}" data-tab="${x.tab}"><span class="sv ${x.cl?'info':x.d-now<=3?'warn':'ok'}"></span><span>${x.cl?'<b>Closing</b>':esc(x.label)}<small>${esc(x.o.fileNo||'Untitled')} · ${esc(x.o.property.street||'No address')}</small></span><span class="when">${x.d===now?'Today':esc(dstr(x.d).slice(0,5))}</span></button>`).join('')}</div>`:'<p class="empty">Nothing due in the next two weeks.</p>'},'div')}
+</section></div>
+<section class="panel" id="dash-files"><div class="panel-head"><h2>Files</h2><button class="b small primary" data-act="newOrder">New file</button></div>
+ <div class="toolbar"><input id="dash-q" type="search" placeholder="Search file #, address, party, parcel" aria-label="Search files" value="${esc(UI.dq)}">
+  ${out(()=>`<select id="dash-status" data-change="dashStatus" aria-label="Filter files">${DFILTERS.map(([v,l])=>`<option value="${v}"${UI.dfilter===v?' selected':''}>${l}</option>`).join('')}</select>`,'span')}</div>
+ ${out(()=>{const rows=FILES().filter(dfilterFn(UI.dfilter)).filter(o=>matchQ(o,UI.dq)).sort((a,b)=>(dnum(a.settlementDate)??1e9)-(dnum(b.settlementDate)??1e9));
+  if(!rows.length)return `<p class="empty">${FILES().length?'No files match this filter.':'No files yet. Click New file to open your first order.'}</p>`;
+  return `<div class="scroll"><table class="t"><thead><tr><th>File</th><th>Property</th><th>Buyer / seller</th><th>Closing</th><th>Next item</th><th class="m">Cash from borrower</th><th>Status</th><th>Drive</th><th></th></tr></thead><tbody>
+  ${rows.map(o=>{const C=CC(o),d=driveOf(o),fl=flagsOf(o),err=fl.filter(x=>x.sev==='error').length;
+   const nx=o.milestones.map(m=>({m,d:msDue(o,m)})).filter(x=>x.d!=null&&!msDone(o,C,x.m)).sort((a,b)=>a.d-b.d)[0];
+   return `<tr><td class="ln"><b>${esc(o.fileNo||'Untitled')}</b></td><td>${esc(propAddr(o)||'—')}</td>
    <td>${esc(C.names('Buyer')||'—')}<br><span class="note">${esc(C.names('Seller')||'—')}</span></td><td style="white-space:nowrap">${esc(fmtDate(o.settlementDate)||'—')}</td>
-   <td class="m">${money(Math.max(0,C.L[303].amt))}</td><td class="m">${money(Math.max(0,C.L[603].amt))}</td>
-   <td>${o.status==='Closed'?'<span class="pill ok">Closed</span>':C.errors?`<span class="pill bad">${C.errors} issue${C.errors>1?'s':''}</span>`:'<span class="pill neutral">Open · balanced</span>'}</td>
-   <td>${d.folderUrl?`<a class="lnk" href="${esc(d.folderUrl)}" target="_blank" rel="noopener">Folder</a> · ${d.docs.length} doc${d.docs.length===1?'':'s'}`:'<span class="note">Not linked</span>'}</td>
+   <td>${nx?`${esc(nx.m.label)}<br><span class="note">${dstr(nx.d)}</span>`:'<span class="note">Nothing open</span>'}</td>
+   <td class="m">${money(Math.max(0,C.L[303].amt))}</td>
+   <td>${o.status==='Closed'?'<span class="pill ok">Closed</span>':err?`<span class="pill bad">${err} flag${err>1?'s':''}</span>`:fl.length?`<span class="pill warn">${fl.length} due soon</span>`:'<span class="pill neutral">On track</span>'}</td>
+   <td>${d.folderUrl?`<a class="lnk" href="${esc(d.folderUrl)}" target="_blank" rel="noopener">Folder</a> · ${d.docs.length}`:'<span class="note">Not linked</span>'}</td>
    <td><button class="b small" data-act="openFile" data-id="${o.id}">Open</button></td></tr>`}).join('')}</tbody></table></div>`},'div')}
 </section>
 <div class="two">
-<section class="panel"><div class="panel-head"><h2>Upcoming closings</h2></div>
- ${out(()=>{const now=dnum(today());const up=DB.orders.filter(o=>o.status!=='Closed'&&dnum(o.settlementDate)!=null&&dnum(o.settlementDate)>=now).sort((a,b)=>dnum(a.settlementDate)-dnum(b.settlementDate)).slice(0,8);
-  return up.length?`<ul class="list">${up.map(o=>`<li><span><b>${esc(fmtDate(o.settlementDate))}</b> · ${esc(o.fileNo||'Untitled')}<small>${esc(propAddr(o)||'No address')}</small></span><button class="b small" data-act="openFile" data-id="${o.id}">Open</button></li>`).join('')}</ul>`:'<p class="empty">No open files have a future settlement date.</p>'},'div')}
+<section class="panel"><div class="panel-head"><h2>Recent activity</h2><span class="note">Audit trail across all files</span></div>
+ ${out(()=>{const a=FILES().flatMap(o=>(norm(o).audit||[]).slice(0,40).map(x=>({...x,o}))).sort((x,y)=>y.at-x.at).slice(0,15);
+  return a.length?`<div class="feed">${a.map(x=>`<button class="ni" data-act="openFile" data-id="${x.o.id}" data-tab="audit"><span class="sv ${x.kind==='auto'?'info':x.kind==='money'?'ok':x.kind==='status'?'warn':''}"${x.kind==='edit'||x.kind==='doc'?' style="background:var(--muted)"':''}></span><span>${esc(x.msg)}<small>${esc(x.o.fileNo||'Untitled')} · ${esc(whoName(x.by))}</small></span><span class="when">${esc(new Date(x.at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}))}</span></button>`).join('')}</div>`:'<p class="empty">No activity recorded yet.</p>'},'div')}
 </section>
 <section class="panel"><div class="panel-head"><h2>Recent documents</h2></div>
- ${out(()=>{const docs=DB.orders.flatMap(o=>driveOf(o).docs.map(d=>({...d,o}))).sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,10);
-  return docs.length?`<ul class="list">${docs.map(d=>`<li><span><a class="lnk" href="${esc(d.url||'#')}" target="_blank" rel="noopener">${esc(d.title)}</a><small>${esc(d.kind)} · ${esc(d.o.fileNo||'Untitled')} · ${esc(d.at?new Date(d.at).toLocaleDateString('en-US'):'')}</small></span><button class="b small" data-act="openFile" data-id="${d.o.id}">Open file</button></li>`).join('')}</ul>`:'<p class="empty">No documents yet. Save a HUD-1 or attach a Drive file from a file’s Documents screen.</p>'},'div')}
+ ${out(()=>{const docs=FILES().flatMap(o=>driveOf(o).docs.map(d=>({...d,o}))).sort((a,b)=>(b.at||0)-(a.at||0)).slice(0,10);
+  return docs.length?`<ul class="list">${docs.map(d=>`<li><span><a class="lnk" href="${esc(d.url||'#')}" target="_blank" rel="noopener">${esc(d.title)}</a><small>${esc(d.kind)} · ${esc(d.o.fileNo||'Untitled')} · ${esc(d.at?new Date(d.at).toLocaleDateString('en-US'):'')}</small></span><button class="b small" data-act="openFile" data-id="${d.o.id}" data-tab="docs">Open file</button></li>`).join('')}</ul>`:'<p class="empty">No documents yet. Save a HUD-1 or attach a Drive file from a file’s Documents screen.</p>'},'div')}
 </section></div>
 </div>`;
+
+PANELS.tracker=()=>{const o=O();return `
+<h1>Closing tracker</h1><p class="lede">Every milestone for this file. Due dates come from the open date and the closing date unless you set one. Overdue items flag the file on the dashboard. Items tagged <span class="tag auto">auto</span> complete themselves from the HUD-1 and the trust ledger, and items tagged <span class="tag">Drive match</span> complete when a matching document reaches the file’s Drive folder.</p>
+<div class="stack">
+<section class="panel"><div class="grid">${fld('File opened',inp('openedDate',{type:'date'}))}${fld('Settlement date',inp('settlementDate',{type:'date'}),'Order.ClosingDate')}
+ ${out(C=>{const done=o.milestones.filter(m=>msDone(o,C,m)).length;return `<div class="f"><span>Progress</span><b style="font-size:18px;color:var(--fg)">${done} of ${o.milestones.length} done</b></div>`},'div')}</div>
+ ${out(()=>timeline([o]),'div')}</section>
+<section class="panel"><div class="scroll"><table class="t">
+ <thead><tr><th>Milestone</th><th>Due</th><th>Status</th><th>Requested</th><th>Received</th><th>Document</th><th>Note</th><th></th></tr></thead><tbody>
+ ${o.milestones.map((m,i)=>`<tr>
+  <td class="w-desc">${MS[m.key]?`<b>${esc(m.label)}</b>`:inp(`milestones.${i}.label`,{ph:'Milestone name'})}${MS[m.key]&&MS[m.key].auto?' <span class="tag auto">auto</span>':''}${MS_MATCH[m.key]?' <span class="tag" title="Marked received when a matching Drive document appears">Drive match</span>':''}</td>
+  <td>${out(()=>{const d=msDue(o,m);return d!=null?`<b style="white-space:nowrap">${dstr(d)}</b>${m.due?'<br><span class="note">set by hand</span>':`<br><span class="note">${MS[m.key]?(MS[m.key].from==='open'?'from open date':'from closing'):''}</span>`}`:'<span class="note">Needs closing date</span>'})}
+   <div class="mini" style="min-width:140px">${inp(`milestones.${i}.due`,{type:'date',cls:'due-in'})}</div></td>
+  <td style="min-width:150px">${sel(`milestones.${i}.status`,[['open','Not started'],['requested','Requested'],['received','Received'],['waived','Waived / N.A.']],{re:true})}</td>
+  <td>${inp(`milestones.${i}.requested`,{type:'date'})}</td><td>${inp(`milestones.${i}.received`,{type:'date'})}</td>
+  <td class="w-pay">${sel(`milestones.${i}.docId`,[['','— Link a document —'],...driveOf(o).docs.map(d=>[d.id,d.title])],{re:true})}</td>
+  <td class="w-desc">${inp(`milestones.${i}.note`,{ph:'Note'})}</td>
+  <td>${out(C=>{const d=msDue(o,m),now=dnum(today());if(msDone(o,C,m))return `<span class="pill ok">${msAuto(o,C,m)&&m.status!=='received'?'Done · auto':m.status==='waived'?'Waived':m.auto?'Done · auto':'Done'}</span>`;
+    if(d==null)return '<span class="pill neutral">No date</span>';if(d<now)return `<span class="pill bad">${now-d}d overdue</span>`;if(d-now<=3)return '<span class="pill warn">Due soon</span>';return '<span class="pill neutral">On track</span>'})}
+   ${MS[m.key]?'':`<button class="x" data-act="delRow" data-list="milestones" data-i="${i}" aria-label="Remove milestone">×</button>`}</td></tr>`).join('')}
+ </tbody></table></div>
+ <div class="row-actions"><button class="b" data-act="addMilestone">Add milestone</button>${driveOf(o).folderId?busyBtn('list','Check Drive folder for documents','driveList'):'<span class="note">Link a Drive folder on Documents to turn on document matching.</span>'}</div>
+ <p class="note">Setting a status to Received fills in today’s date. Linking a document marks the item received. When the Drive folder is checked, documents named like “Title commitment”, “Buyer info sheet”, “Seller information sheet”, “Payoff”, “Survey” or “Estoppel” mark their item received automatically, and the change is written to the audit log.</p>
+</section></div>`};
+
+PANELS.audit=()=>{const o=O();const kinds=[['all','All activity'],['edit','Field edits'],['money','Money'],['doc','Documents & HUD'],['status','File status'],['auto','Automation']];return `
+<h1>Audit log</h1><p class="lede">Who changed what on this file and when. Entries are added automatically for every field change, receipt, check, wire, HUD-1 version, document and automation action. They cannot be edited.</p>
+<section class="panel"><div class="toolbar"><select id="audit-kind" data-change="auditKind" aria-label="Filter activity">${kinds.map(([v,l])=>`<option value="${v}"${UI.akind===v?' selected':''}>${l}</option>`).join('')}</select></div>
+ ${out(()=>{const a=o.audit.filter(x=>UI.akind==='all'||x.kind===UI.akind);return a.length?`<div class="scroll"><table class="t"><thead><tr><th>When</th><th>Who</th><th>Type</th><th>What happened</th></tr></thead><tbody>
+  ${a.map(x=>`<tr><td class="ln" style="white-space:nowrap">${esc(new Date(x.at).toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'numeric',minute:'2-digit'}))}</td><td>${esc(whoName(x.by))}</td><td><span class="tag${x.kind==='auto'?' auto':''}">${esc(x.kind)}</span></td><td>${esc(x.msg)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">No activity of this type yet.</p>'},'div')}
+ <p class="note">The newest 400 entries are kept on each file.</p></section>`};
+
+PANELS.crm=()=>{const roles=['all',...ROLES];return `
+<h1>Contacts directory</h1><p class="lede">Every person and company across all files, combined by name. See which files each one is on, open those files, and add a contact to the file you have open without retyping their details.</p>
+<section class="panel"><div class="toolbar"><input id="crm-q" type="search" placeholder="Search name, email, phone, company" aria-label="Search contacts" value="${esc(UI.cq)}">
+ <select id="crm-role" data-change="crmRole" aria-label="Filter by role">${roles.map(r=>`<option value="${esc(r)}"${UI.crole===r?' selected':''}>${r==='all'?'All roles':esc(r)}</option>`).join('')}</select></div>
+ ${out(()=>{const q=UI.cq.toLowerCase().trim();const cur=O();const all=directory();const list=all.filter(e=>(UI.crole==='all'||e.roles.has(UI.crole))&&(!q||[e.name,e.email,e.phone,e.address,e.ref].join(' ').toLowerCase().includes(q)));
+  if(!list.length)return `<p class="empty">${all.length?'No contacts match.':'No named contacts yet. Names typed on any file’s Contacts screen appear here.'}</p>`;
+  return `<div class="scroll"><table class="t"><thead><tr><th>Name</th><th>Roles</th><th>Phone / email</th><th class="m">Files</th><th>Next closing</th><th></th></tr></thead><tbody>
+  ${list.map(e=>{const open=e.files.filter(f=>f.o.status!=='Closed');const now=dnum(today());const nx=open.map(f=>dnum(f.o.settlementDate)).filter(d=>d!=null&&d>=now).sort((a,b)=>a-b)[0];
+   const onCur=e.files.some(f=>f.o===cur);const exp=UI.crmOpen===e.key;
+   return `<tr${exp?' class="hl"':''}><td><b>${esc(e.name)}</b>${e.address?`<br><span class="note">${esc(e.address)}</span>`:''}</td><td><div class="chips">${[...e.roles].map(r=>`<span class="tag">${esc(r)}</span>`).join('')}</div></td>
+    <td>${esc(e.phone||'—')}<br><span class="note">${esc(e.email||'')}</span></td><td class="m">${e.files.length}${open.length!==e.files.length?`<br><span class="note">${open.length} open</span>`:''}</td><td>${nx!=null?dstr(nx):'—'}</td>
+    <td><div class="row-actions" style="flex-wrap:nowrap"><button class="b small" data-act="crmToggle" data-key="${esc(e.key)}">${exp?'Hide files':'Show files'}</button>${onCur?`<span class="pill ok">On ${esc(cur.fileNo||'open file')}</span>`:`<button class="b small" data-act="crmAdd" data-key="${esc(e.key)}">Add to ${esc(cur.fileNo||'open file')}</button>`}</div></td></tr>
+    ${exp?`<tr class="hl"><td colspan="6"><ul class="list">${e.files.map(f=>`<li><span><b>${esc(f.o.fileNo||'Untitled')}</b> · ${esc(f.role)} · ${esc(propAddr(f.o)||'No address')}<small>Closing ${esc(fmtDate(f.o.settlementDate)||'not set')} · ${esc(f.o.status)}${flagsOf(f.o).some(x=>x.sev==='error')?' · flagged':''}</small></span><button class="b small" data-act="openFile" data-id="${f.o.id}" data-tab="contacts">Open file</button></li>`).join('')}</ul></td></tr>`:''}`}).join('')}
+  </tbody></table></div>`},'div')}
+ <p class="note">Contacts are matched by exact name. Use the same spelling on every file so each contact's history stays together.</p></section>`};
 
 /* ---------- Google Drive (viewer's claude.ai connector) ---------- */
 const qs=v=>String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
@@ -1016,42 +1224,45 @@ function stampHud(o){if(!o.hudVersion){o.hudVersion=1;o.hudGenerated=new Date().
 const DRIVE_ACT={
   async driveList(){const o=O(),d=driveOf(o);if(!d.folderId)return;DRV.busy='list';DRV.err='';refresh();
     try{const p=await drive('search_files',{query:`parentId = '${qs(d.folderId)}'`,pageSize:50,excludeContentSnippets:true});
-      if(O().id!==o.id)return;DRV.list=filesOf(p);DRV.listFor=d.folderId;DRV.listAt=Date.now();DRV.busy='';refresh()}catch(e){driveFail(e)}},
+      if(O().id!==o.id)return;DRV.list=filesOf(p);DRV.listFor=d.folderId;DRV.listAt=Date.now();DRV.busy='';
+      const n=autoMatch(o,DRV.list);if(n){DRV.msg=`Automation marked ${n} tracker item${n>1?'s':''} received from documents in the folder.`;save();render()}else refresh()}catch(e){driveFail(e)}},
   async driveCreateFolder(){const o=O();DRV.busy='folder';DRV.err='';DRV.msg='';refresh();
     const input={title:folderName(o),contentMimeType:'application/vnd.google-apps.folder'};if(CFG.driveRootId)input.parentId=CFG.driveRootId;
     try{const f=createdOf(await drive('create_file',input));if(!f)throw{code:'tool_error',message:'Drive did not return the new folder.'};
       Object.assign(driveOf(o),{folderId:f.id,folderTitle:f.title||input.title,folderUrl:f.viewUrl||`https://drive.google.com/drive/folders/${f.id}`});
-      DRV.busy='';DRV.msg=`Created folder “${f.title||input.title}” in Google Drive.`;DRV.list=[];DRV.listFor=f.id;save();render()}catch(e){driveFail(e,true)}},
+      DRV.busy='';DRV.msg=`Created folder “${f.title||input.title}” in Google Drive.`;DRV.list=[];DRV.listFor=f.id;logA(o,`Drive folder created: ${f.title||input.title}`,'doc');save();render()}catch(e){driveFail(e,true)}},
   async driveFindFolders(){const q=(document.getElementById('drv-fq')||{}).value||'';DRV.busy='folders';DRV.err='';refresh();
     let query="mimeType = 'application/vnd.google-apps.folder'";if(q.trim())query+=` and title contains '${qs(q.trim())}'`;
     try{DRV.folders=filesOf(await drive('search_files',{query,pageSize:15,excludeContentSnippets:true}));DRV.busy='';refresh()}catch(e){driveFail(e)}},
   driveLink(el){const f=(DRV.folders||[]).find(x=>x.id===el.dataset.id);if(!f)return;
-    Object.assign(driveOf(O()),{folderId:f.id,folderTitle:f.title,folderUrl:f.viewUrl||''});DRV.folders=null;DRV.msg=`Linked folder “${f.title}”.`;DRV.list=null;save();render();ACT.driveList()},
+    Object.assign(driveOf(O()),{folderId:f.id,folderTitle:f.title,folderUrl:f.viewUrl||''});DRV.folders=null;DRV.msg=`Linked folder “${f.title}”.`;DRV.list=null;logA(O(),`Drive folder linked: ${f.title}`,'doc');save();render();ACT.driveList()},
   driveRoot(el){const f=(DRV.folders||[]).find(x=>x.id===el.dataset.id);if(!f)return;CFG.driveRootId=f.id;CFG.driveRootTitle=f.title;saveCfg();DRV.folders=null;DRV.msg=`New file folders will be created inside “${f.title}”.`;render()},
   driveRootClear(){CFG.driveRootId='';CFG.driveRootTitle='';saveCfg();render()},
-  driveUnlink(){Object.assign(driveOf(O()),{folderId:'',folderTitle:'',folderUrl:''});DRV.list=null;DRV.msg='Folder unlinked. Nothing was deleted in Google Drive.';save();render()},
+  driveUnlink(){logA(O(),`Drive folder unlinked: ${driveOf(O()).folderTitle}`,'doc');Object.assign(driveOf(O()),{folderId:'',folderTitle:'',folderUrl:''});DRV.list=null;DRV.msg='Folder unlinked. Nothing was deleted in Google Drive.';save();render()},
   async driveSaveHud(){const o=O(),d=driveOf(o);if(!d.folderId){DRV.err='Create or link a Drive folder for this file first.';UI.tab='docs';render();return}
     stampHud(o);const C=compute(o);DRV.busy='hud';DRV.err='';UI.hudMsg='Saving HUD-1 to Google Drive…';refresh();
     const title=`HUD-1 v${o.hudVersion} - ${o.fileNo||'Untitled'} - ${propAddr(o)||'No address'}`.slice(0,200);
     try{const f=createdOf(await drive('create_file',{title,textContent:hudDocHtml(o,C),contentMimeType:'text/html',parentId:d.folderId}));
       if(!f)throw{code:'tool_error',message:'Drive did not return the new document.'};
-      addDoc(o,{...f,title:f.title||title},`HUD-1 v${o.hudVersion}`);DRV.busy='';DRV.msg=UI.hudMsg=`Saved “${f.title||title}” to the file’s Drive folder.`;DRV.listFor='';save();render()}
+      addDoc(o,{...f,title:f.title||title},`HUD-1 v${o.hudVersion}`);logA(o,`HUD-1 version ${o.hudVersion} saved to Google Drive`,'doc');DRV.busy='';DRV.msg=UI.hudMsg=`Saved “${f.title||title}” to the file’s Drive folder.`;DRV.listFor='';save();render()}
     catch(e){driveFail(e,true);UI.hudMsg=DRV.err;refresh()}},
   async driveSaveMerge(){const o=O(),d=driveOf(o);if(!d.folderId)return;const C=compute(o);DRV.busy='merge';DRV.err='';refresh();
-    const title=`Closing instructions - ${o.fileNo||'Untitled'}`;
+    const title=`Merged closing summary - ${o.fileNo||'Untitled'}`;
     try{const f=createdOf(await drive('create_file',{title,textContent:merge(o,C),contentMimeType:'text/plain',parentId:d.folderId}));if(!f)throw{code:'tool_error',message:'Drive did not return the new document.'};
-      addDoc(o,{...f,title:f.title||title},'Merged document');DRV.busy='';DRV.msg=`Saved “${f.title||title}”.`;save();render();ACT.driveList()}catch(e){driveFail(e,true)}},
+      addDoc(o,{...f,title:f.title||title},'Merged document');logA(o,'Merged closing summary saved to Google Drive','doc');DRV.busy='';DRV.msg=`Saved “${f.title||title}”.`;save();render();ACT.driveList()}catch(e){driveFail(e,true)}},
   async driveNew(el){const o=O(),d=driveOf(o);if(!d.folderId)return;const t=((document.getElementById('drv-newt')||{}).value||'').trim();
     if(!t){DRV.err='Type a name for the new document first.';refresh();return}const kind=el.dataset.kind;DRV.busy='new';DRV.err='';refresh();
     try{const f=createdOf(await drive('create_file',{title:t,contentMimeType:kind==='sheet'?'application/vnd.google-apps.spreadsheet':'application/vnd.google-apps.document',parentId:d.folderId}));
-      if(!f)throw{code:'tool_error',message:'Drive did not return the new file.'};addDoc(o,{...f,title:f.title||t},kind==='sheet'?'Google Sheet':'Google Doc');
+      if(!f)throw{code:'tool_error',message:'Drive did not return the new file.'};addDoc(o,{...f,title:f.title||t},kind==='sheet'?'Google Sheet':'Google Doc');logA(o,`Created ${kind==='sheet'?'Google Sheet':'Google Doc'} “${f.title||t}”`,'doc');
       DRV.busy='';DRV.msg=`Created “${f.title||t}”.`;save();render();ACT.driveList()}catch(e){driveFail(e,true)}},
   async driveSearch(){const q=((document.getElementById('drv-q')||{}).value||'').trim();if(!q)return;DRV.busy='search';DRV.err='';refresh();
     try{DRV.results=filesOf(await drive('search_files',{query:`fullText contains '${qs(q)}' and mimeType != 'application/vnd.google-apps.folder'`,pageSize:15,excludeContentSnippets:true}));DRV.busy='';refresh()}catch(e){driveFail(e)}},
-  driveAttach(el){const pool=[...(DRV.results||[]),...(DRV.list||[])];const f=pool.find(x=>x.id===el.dataset.id);if(!f)return;addDoc(O(),f,'Attached');DRV.msg=`Attached “${f.title}” to this file.`;save();render()},
-  driveDetach(el){const d=driveOf(O());d.docs=d.docs.filter(x=>x.id!==el.dataset.id);save();render()},
+  driveAttach(el){const pool=[...(DRV.results||[]),...(DRV.list||[])];const f=pool.find(x=>x.id===el.dataset.id);if(!f)return;const o=O();addDoc(o,f,'Attached');logA(o,`Attached Drive document “${f.title}”`,'doc');
+    const n=autoMatch(o,[f]);DRV.msg=`Attached “${f.title}” to this file.${n?` Automation marked ${n} tracker item${n>1?'s':''} received.`:''}`;save();render()},
+  driveDetach(el){const o=O(),d=driveOf(o);const x=d.docs.find(y=>y.id===el.dataset.id);if(x)logA(o,`Removed document “${x.title}” from the file (still in Drive)`,'doc');d.docs=d.docs.filter(y=>y.id!==el.dataset.id);
+    o.milestones.forEach(m=>{if(m.docId===el.dataset.id)m.docId=''});save();render()},
   async downloadHud(){const o=O();if(!DL)return;stampHud(o);save();const C=compute(o);
-    try{await DL.save({filename:`HUD-1_${(o.fileNo||'draft').replace(/[^\w.-]+/g,'_')}_v${o.hudVersion}.html`,data:hudDocHtml(o,C)});UI.hudMsg='HUD-1 saved. Open the file in a browser to print it.'}
+    try{await DL.save({filename:`HUD-1_${(o.fileNo||'draft').replace(/[^\w.-]+/g,'_')}_v${o.hudVersion}.html`,data:hudDocHtml(o,C)});UI.hudMsg='HUD-1 saved. Open the file in a browser to print it.';logA(o,`HUD-1 version ${o.hudVersion} downloaded`,'doc');save()}
     catch(e){UI.hudMsg=e&&e.code==='declined'?'':e&&e.code==='rate_limited'?'A save prompt is already open.':'Downloads are not available in this view.'}refresh()},
 };
 const busyBtn=(k,label,act,extra='')=>`<button class="b${extra}" data-act="${act}"${DRV.busy||!MCP?' disabled':''}>${DRV.busy===k?'Working…':label}</button>`;
@@ -1086,29 +1297,30 @@ ${d.folderId?`<section class="panel"><div class="panel-head"><h2>Save to this fi
 
 /* ---------- shell ---------- */
 function render(){
-  OUT=[];const o=O();const tab=PANELS[UI.tab]?UI.tab:'dash';UI.tab=tab;let flow='';
-  const nav=`<button class="home" data-act="tab" data-tab="dash" aria-current="${tab==='dash'}">Dashboard</button>`+TABS.map(([k,l,f])=>{const h=f!==flow?`<div class="flow">${f}</div>`:'';flow=f;
+  OUT=[];const o=O();const tab=PANELS[UI.tab]?UI.tab:'dash';UI.tab=tab;let flow='';const G=GLOBAL_TABS.some(t=>t[0]===tab);
+  const nav=GLOBAL_TABS.map(([k,l])=>`<button class="home" data-act="tab" data-tab="${k}" aria-current="${tab===k}">${l}${k==='dash'?out(()=>{const n=FILES().filter(dfilterFn('flagged')).length;return n?`<span class="pill bad" style="padding:0 7px">${n}</span>`:''}):''}</button>`).join('')
+    +`<div class="flow">${esc(o.fileNo||'Untitled file')}</div>`+TABS.map(([k,l,f])=>{const h=f!==flow?`<div class="subflow">${f}</div>`:'';flow=f;
     return `${h}<button data-act="tab" data-tab="${k}" aria-current="${k===tab}">${l}${k==='hud'?out(C=>C.errors?`<span class="pill bad" style="padding:0 7px">${C.errors}</span>`:''):''}${k==='docs'?out(()=>{const n=driveOf(O()).docs.length;return n?`<span class="pill neutral" style="padding:0 7px">${n}</span>`:''}):''}</button>`}).join('');
-  const locked=o.status==='Closed'&&!['hud','ledger','codes','settings','docs','dash'].includes(tab);
+  const locked=o.status==='Closed'&&!['hud','ledger','codes','settings','docs','audit','tracker'].includes(tab)&&!G;
   document.getElementById('app').innerHTML=`
   <header class="top"><div class="brand"><b>The Hub</b><span>Closing desk</span></div>
-   <div class="filebar">${tab==='dash'?'':`<button class="b primary" data-act="generate">Generate HUD-1</button><button class="b" data-act="dupOrder">Duplicate</button>
+   <div class="filebar">${out(()=>{const n=FILES().reduce((a,x)=>a+flagsOf(x).length,0);return `<button class="b bell" data-act="dashFilter" data-f="flagged" data-to="dash-notes">Alerts${n?` <span class="pill bad" style="padding:0 7px">${n}</span>`:''}</button>`},'span')}${G?'':`<button class="b primary" data-act="generate">Generate HUD-1</button><button class="b" data-act="dupOrder">Duplicate</button>
     ${UI.confirmDelete?`<span class="note">Delete file ${esc(o.fileNo||'Untitled')} permanently?</span><button class="b danger" data-act="doDelete">Delete</button><button class="b" data-act="cancelDelete">Keep</button>`:`<button class="b danger" data-act="askDelete">Delete</button>`}`}</div>
-   ${tab==='dash'?'':out(C=>`<span class="pill ${o.status==='Closed'?'ok':'neutral'}">${esc(o.status)}</span><span class="pill ${Math.abs(C.fileBal)<0.005?'ok':'bad'}">${Math.abs(C.fileBal)<0.005?'Balanced':'Out of balance'} ${money(C.fileBal)}</span>`,'div','statusbox')}
+   ${G?'':out(C=>`<span class="pill ${o.status==='Closed'?'ok':'neutral'}">${esc(o.status)}</span><span class="pill ${Math.abs(C.fileBal)<0.005?'ok':'bad'}">${Math.abs(C.fileBal)<0.005?'Balanced':'Out of balance'} ${money(C.fileBal)}</span>`,'div','statusbox')}
   </header>
   <div class="shell"><aside class="side">
-    <div class="side-sec"><div class="side-h"><span>Files</span>${out(()=>`<span>${DB.orders.length}</span>`)}</div>
+    <div class="side-sec"><div class="side-h"><span>Files</span>${out(()=>`<span>${FILES().length}</span>`)}</div>
      <input id="side-q" type="search" placeholder="Search file #, address, party, parcel" aria-label="Search files" value="${esc(UI.q)}">
      <button class="b small primary" data-act="newOrder">New file</button>
      ${out(sideList,'div','side-list')}</div>
     <nav class="rail" aria-label="Modules">${nav}</nav>
     ${out(syncFoot,'div','side-foot')}
    </aside>
-   <main>${tab==='dash'?'':fileBand()}${o.status==='Closed'&&tab!=='dash'?'<div class="banner closed">This file is closed. Reopen it from the HUD-1 screen to make changes.</div>':''}<fieldset class="lock"${locked?' disabled':''}>${PANELS[tab]()}</fieldset></main></div>`;
+   <main>${G?'':fileBand()}${o.status==='Closed'&&!G?'<div class="banner closed">This file is closed. Reopen it from the HUD-1 screen to make changes.</div>':''}<fieldset class="lock"${locked?' disabled':''}>${PANELS[tab]()}</fieldset></main></div>`;
   refresh();
 }
 function refresh(){
-  const C=compute(O());
+  MEMO=new Map();const C=CC(O());
   document.querySelectorAll('[data-out]').forEach(el=>{const f=OUT[+el.dataset.out];if(!f)return;const h=f(C);if(el.innerHTML!==h)el.innerHTML=h});
 }
 function apply(el){let v=el.type==='checkbox'?el.checked:el.value;if(el.dataset.num)v=num(v);setPath(O(),el.dataset.bind,v);save()}
@@ -1118,19 +1330,30 @@ const ACT={
   tab(el){UI.tab=el.dataset.tab;UI.confirmDelete=false;try{history.replaceState(null,'','#'+UI.tab)}catch(e){}render();window.scrollTo(0,0);
     if(UI.tab==='docs'){const d=driveOf(O());if(d.folderId&&DRV.listFor!==d.folderId)ACT.driveList()}
     if(el.dataset.to){const t=document.getElementById(el.dataset.to);if(t)t.scrollIntoView({block:'start'})}},
-  newOrder(){const o=newOrder();DB.orders.push(o);DB.current=o.id;pushRecent(o.id);UI.tab='order';UI.check=null;save();render();const f=document.getElementById('f-fileNo');if(f)f.focus()},
+  newOrder(){const o=newOrder();DB.orders.push(o);DB.current=o.id;pushRecent(o.id);UI.tab='order';UI.check=null;logA(o,'File opened','status');save();render();const f=document.getElementById('f-fileNo');if(f)f.focus()},
   openFile(el){DB.current=el.dataset.id;pushRecent(el.dataset.id);UI.check=null;UI.confirmDelete=false;DRV.list=null;DRV.err='';DRV.msg='';
-    if(UI.tab==='dash')UI.tab='order';saveLocal();render();window.scrollTo(0,0);if(UI.tab==='docs')ACT.driveList()},
-  dashStatus(el){UI.dstatus=el.value;refresh()},
-  dupOrder(){const c=JSON.parse(JSON.stringify(O()));c.id=uid();c.fileNo=(c.fileNo||'Untitled')+' copy';c.status='Open';c.receipts=[];c.issued={};DB.orders.push(c);DB.current=c.id;save();render()},
+    if(el.dataset.tab)UI.tab=el.dataset.tab;else if(GLOBAL_TABS.some(t=>t[0]===UI.tab))UI.tab='order';
+    try{history.replaceState(null,'','#'+UI.tab)}catch(e){}saveLocal();render();window.scrollTo(0,0);if(UI.tab==='docs'&&driveOf(O()).folderId)ACT.driveList()},
+  dashStatus(el){UI.dfilter=el.value;refresh()},
+  dashFilter(el){UI.dfilter=el.dataset.f;if(UI.tab!=='dash'){UI.tab='dash';try{history.replaceState(null,'','#dash')}catch(e){}}render();
+    const t=document.getElementById(el.dataset.to);if(t)t.scrollIntoView({block:'start'})},
+  auditKind(el){UI.akind=el.value;refresh()},crmRole(el){UI.crole=el.value;refresh()},
+  crmToggle(el){UI.crmOpen=UI.crmOpen===el.dataset.key?'':el.dataset.key;refresh()},
+  crmAdd(el){const e=directory().find(x=>x.key===el.dataset.key);if(!e)return;const o=O();const role=[...e.roles][0]||'Other';
+    o.contacts.push({id:uid(),role,name:e.name,address:e.address,phone:e.phone,email:e.email,ref:e.ref});logA(o,`Added ${e.name} (${role}) from the contacts directory`,'edit');save();refresh()},
+  addMilestone(){const o=O();o.milestones.push({key:'c_'+uid(),label:'',status:'open',due:'',requested:'',received:'',note:'',docId:''});logA(o,'Added a custom milestone','edit');save();render()},
+  dupOrder(){const src=O();const c=JSON.parse(JSON.stringify(src));c.id=uid();c.fileNo=(c.fileNo||'Untitled')+' copy';c.status='Open';c.receipts=[];c.issued={};
+    c.audit=[];c.openedDate=today();c.closedAt='';c.hudVersion=0;c.hudGenerated='';c.milestones=MS_TEMPLATE.map(newMs);c.drive={folderId:'',folderTitle:'',folderUrl:'',docs:[]};logA(c,`File opened as a copy of ${src.fileNo||'an untitled file'}`,'status');DB.orders.push(c);DB.current=c.id;save();render()},
   askDelete(){UI.confirmDelete=true;render()},cancelDelete(){UI.confirmDelete=false;render()},
   doDelete(){removeRemote(DB.current);DB.orders=DB.orders.filter(x=>x.id!==DB.current);if(!DB.orders.length)DB.orders.push(newOrder());DB.current=DB.orders[0].id;UI.confirmDelete=false;save();render()},
   switchOrder(el){DB.current=el.value;UI.check=null;save();render()},
-  addContact(){const role=document.getElementById('new-role').value;O().contacts.push({id:uid(),role,name:'',address:'',phone:'',email:'',ref:''});save();render()},
-  delContact(el){const o=O(),id=el.dataset.id;o.contacts=o.contacts.filter(c=>c.id!==id);
+  addContact(){const role=document.getElementById('new-role').value;logA(O(),`Added a ${role} contact`,'edit');O().contacts.push({id:uid(),role,name:'',address:'',phone:'',email:'',ref:''});save();render()},
+  delContact(el){const o=O(),id=el.dataset.id;const gone=o.contacts.find(c=>c.id===id);logA(o,`Removed contact ${gone?(gone.name||gone.role):''}`,'edit');o.contacts=o.contacts.filter(c=>c.id!==id);
     o.items.forEach(i=>{if(i.payeeId===id)i.payeeId=''});o.payoffs.forEach(p=>{if(p.payeeId===id)p.payeeId=''});o.adjustments.forEach(a=>{if(a.payeeId===id)a.payeeId=''});
     o.commission.splits.forEach(s=>{if(s.contactId===id)s.contactId=''});if(o.earnestHolder===id)o.earnestHolder='agent';save();render()},
-  delRow(el){listAt(el.dataset.list).splice(+el.dataset.i,1);save();render()},
+  delRow(el){const L=listAt(el.dataset.list);const r=L[+el.dataset.i];L.splice(+el.dataset.i,1);
+    const what={items:'charge line '+(r&&r.line),prorations:'a proration',payoffs:'a payoff'+(r&&num(r.amount)?' of '+money(r.amount):''),adjustments:'a credit/adjustment',receipts:'a receipt'+(r&&num(r.amount)?' of '+money(r.amount):''),'commission.splits':'a commission split','settings.tiers':'a title rate tier',milestones:'milestone '+((r&&r.label)||'')}[el.dataset.list]||'a row';
+    logA(O(),'Removed '+what,el.dataset.list==='receipts'?'money':'edit');save();render()},
   addProration(){O().prorations.push({id:uid(),kind:'other',label:'',annual:0,from:'',to:'',status:'paid',note:''});save();render()},
   addLine(el){const sec=+el.dataset.sec;const o=O();const line=String(nextLine(sec));
     const base={id:uid(),line,desc:'',payeeId:'',b:0,s:0,poc:0,pocBy:'B',custom:true};
@@ -1142,26 +1365,26 @@ const ACT={
   addTier(){O().settings.tiers.push({upTo:0,rate:0});save();render()},
   recordExp(el){const o=O(),C=compute(o);const e=C.exp.find(x=>x.key===el.dataset.key);if(!e)return;
     const got=o.receipts.filter(r=>r.kind===e.key).reduce((a,r)=>a+num(r.amount),0);
-    o.receipts.push({id:uid(),date:today(),from:e.from,kind:e.key,method:'Wire',amount:r2(e.amt-got),memo:''});save();render()},
+    o.receipts.push({id:uid(),date:today(),from:e.from,kind:e.key,method:'Wire',amount:r2(e.amt-got),memo:''});logA(o,`Receipt recorded: ${money(e.amt-got)} ${e.kind} from ${e.from}`,'money');save();render()},
   addReceipt(){O().receipts.push({id:uid(),date:today(),from:'',kind:'other',method:'Wire',amount:0,memo:''});save();render()},
   issue(el){const o=O(),C=compute(o);const d=C.disb.find(x=>x.key===el.dataset.key);if(!d||Math.abs(C.fileBal)>=0.005)return;const m=el.dataset.m;
     const no=m==='Check'?String(o.nextCheck++):'W-'+String(o.nextWire++).padStart(3,'0');
-    o.issued[d.key]={no,method:m,date:today(),amount:d.amt,name:d.name};UI.check=d.key;save();render()},
-  voidD(el){delete O().issued[el.dataset.key];if(UI.check===el.dataset.key)UI.check=null;save();render()},
+    o.issued[d.key]={no,method:m,date:today(),amount:d.amt,name:d.name};logA(o,`${m} ${no} issued to ${d.name} for ${money(d.amt)}`,'money');UI.check=d.key;save();render()},
+  voidD(el){const iss=O().issued[el.dataset.key];if(iss)logA(O(),`${iss.method} ${iss.no} to ${iss.name} voided (${money(iss.amount)})`,'money');delete O().issued[el.dataset.key];if(UI.check===el.dataset.key)UI.check=null;save();render()},
   viewCheck(el){UI.check=el.dataset.key;render()},closeCheck(){UI.check=null;render()},
   generate(){const o=O();const d=new Date();o.hudGenerated=d.toLocaleString('en-US',{month:'2-digit',day:'2-digit',year:'numeric',hour:'numeric',minute:'2-digit'});
-    o.hudVersion=(o.hudVersion||0)+1;UI.tab='hud';try{history.replaceState(null,'','#hud')}catch(e){}save();render();
+    o.hudVersion=(o.hudVersion||0)+1;logA(o,`HUD-1 generated (version ${o.hudVersion})`,'doc');UI.tab='hud';try{history.replaceState(null,'','#hud')}catch(e){}save();render();
     const el=document.getElementById('hud-doc');if(el)el.scrollIntoView({block:'start'})},
   jump(el){const t=document.getElementById(el.dataset.to);if(t)t.scrollIntoView({block:'start'})},
-  closeFile(){const o=O();if(compute(o).errors)return;o.status='Closed';save();render()},
-  reopen(){O().status='Open';save();render()},
+  closeFile(){const o=O();if(compute(o).errors)return;o.status='Closed';o.closedAt=today();logA(o,'File closed','status');save();render()},
+  reopen(){O().status='Open';O().closedAt='';logA(O(),'File reopened','status');save();render()},
   copyMerge(){const t=document.getElementById('merge-out').textContent;copyText(t,document.getElementById('merge-out'))},
   exportJson(){const ta=document.getElementById('io');UI.io=JSON.stringify(O(),null,1);ta.value=UI.io;copyText(UI.io,ta);msg('File data is in the box below and copied to your clipboard if your browser allowed it.')},
   importJson(){const ta=document.getElementById('io');try{const d=JSON.parse(ta.value);
       if(!d||!Array.isArray(d.items)||!Array.isArray(d.contacts)||!d.settings)throw new Error('missing parts');
-      d.id=uid();d.receipts=d.receipts||[];d.issued=d.issued||{};d.drive=d.drive||{folderId:'',folderTitle:'',folderUrl:'',docs:[]};DB.orders.push(d);DB.current=d.id;UI.io='';save();UI.tab='order';render()}
+      d.id=uid();norm(d);logA(d,'File loaded from pasted data','status');d.receipts=d.receipts||[];d.issued=d.issued||{};d.drive=d.drive||{folderId:'',folderTitle:'',folderUrl:'',docs:[]};DB.orders.push(d);DB.current=d.id;UI.io='';save();UI.tab='order';render()}
     catch(e){msg('That text is not a closing-desk file. Paste the full text produced by "Copy this file\'s data".')}},
-  loadSample(){const o=sampleOrder();DB.orders.push(o);DB.current=o.id;UI.tab='hud';save();render()},
+  loadSample(){const o=sampleOrder();logA(o,'File opened (test scenario)','status');DB.orders.push(o);DB.current=o.id;UI.tab='hud';save();render()},
 };
 Object.assign(ACT,DRIVE_ACT);
 function msg(t){const m=document.getElementById('io-msg');if(m)m.textContent=t}
@@ -1170,15 +1393,25 @@ function selectEl(el){if(!el)return;if(el.select){el.select();return}const r=doc
 
 document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el||el.disabled)return;const f=ACT[el.dataset.act];if(f){e.preventDefault();f(el)}});
 document.addEventListener('input',e=>{const el=e.target;
-  if(el.id==='side-q'){UI.q=el.value;refresh();return}if(el.id==='dash-q'){UI.dq=el.value;refresh();return}
-  if(!el.dataset||!el.dataset.bind||el.dataset.re)return;apply(el);refresh()});
+  if(el.id==='side-q'){UI.q=el.value;refresh();return}if(el.id==='dash-q'){UI.dq=el.value;refresh();return}if(el.id==='crm-q'){UI.cq=el.value;refresh();return}
+  if(!el.dataset||!el.dataset.bind||el.dataset.re||el.tagName==='SELECT')return;apply(el);refresh()});
 document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target&&e.target.id;
   if(id==='drv-q')ACT.driveSearch();else if(id==='drv-fq')ACT.driveFindFolders();
   else if(id==='side-q'){const b=document.querySelector('.side-list .fi');if(b)b.click()}});
+function afterChange(path,nv){const o=O();let m;
+  if((m=path.match(/^milestones\.(\d+)\.status$/))){const ms=o.milestones[+m[1]];if(nv==='received'&&!ms.received)ms.received=today();if(nv==='requested'&&!ms.requested)ms.requested=today();if(nv!=='received')ms.auto=false;return true}
+  if((m=path.match(/^milestones\.(\d+)\.docId$/))){const ms=o.milestones[+m[1]];if(nv&&ms.status!=='received'){ms.status='received';ms.received=ms.received||today()}return true}
+  if((m=path.match(/^contacts\.(\d+)\.name$/))){const c=o.contacts[+m[1]];const k=nv.trim().toLowerCase();if(!k)return false;
+    const src=DB.orders.flatMap(x=>x.contacts).find(x=>x!==c&&(x.name||'').trim().toLowerCase()===k);if(!src)return false;let n=0;
+    ['address','phone','email','ref'].forEach(f=>{if(!c[f]&&src[f]){c[f]=src[f];n++}});if(n){logA(o,`Filled ${c.name}’s details from the contacts directory`,'edit');return true}}
+  return false}
 document.addEventListener('change',e=>{const el=e.target;
-  if(el.dataset.bind){apply(el);if(el.dataset.re)render();else{if(el.dataset.num)el.value=fmtIn(getPath(O(),el.dataset.bind),+el.dataset.num);refresh()}}
+  if(el.dataset.bind){const path=el.dataset.bind;const old=el._old!==undefined?el._old:String(getPath(O(),path)??'');apply(el);const nv=String(getPath(O(),path)??'');let re=!!el.dataset.re;
+    if(old!==nv){if(afterChange(path,nv))re=true;logA(O(),path==='mergeTemplate'?'Merge template edited':`${fieldLabel(path)}: ${valDisp(path,old,el.dataset.num==='2')} → ${valDisp(path,nv,el.dataset.num==='2')}`,/^(receipts|payoffs)\./.test(path)?'money':'edit');save()}
+    el._old=nv;
+    if(re)render();else{if(el.dataset.num)el.value=fmtIn(getPath(O(),path),+el.dataset.num);refresh()}}
   else if(el.dataset.change&&ACT[el.dataset.change])ACT[el.dataset.change](el)});
-document.addEventListener('focusin',e=>{if(e.target.matches&&e.target.matches('input.num'))setTimeout(()=>{try{e.target.select()}catch(x){}},0)});
+document.addEventListener('focusin',e=>{const t=e.target;if(t&&t.dataset&&t.dataset.bind)t._old=String(getPath(O(),t.dataset.bind)??'');if(e.target.matches&&e.target.matches('input.num'))setTimeout(()=>{try{e.target.select()}catch(x){}},0)});
 
 (function boot(){const h=(location.hash||'').slice(1);if(PANELS[h]||h==='dash')UI.tab=h;render();
   const use=n=>{try{return window.claude&&window.claude.use?window.claude.use(n):Promise.resolve(null)}catch(e){return Promise.resolve(null)}};
@@ -1188,5 +1421,6 @@ document.addEventListener('focusin',e=>{if(e.target.matches&&e.target.matches('i
   }).catch(()=>{});
   use('mcp').then(m=>{MCP=m;if(MCP&&UI.tab==='docs')render();else refresh()}).catch(()=>{});
   use('downloads').then(d=>{DL=d;refresh()}).catch(()=>{});
+  use('user').then(async u=>{if(!u)return;USER=u;try{ME=(await u.id())||''}catch(e){}refreshNames();refresh()}).catch(()=>{});
 })();
 </script>

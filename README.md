@@ -8,7 +8,11 @@ A SoftPro-style closing and title workbench that generates a HUD-1 Settlement St
 
 | Module | What it holds | Feeds |
 |---|---|---|
-| Dashboard + file sidebar | Search every saved file by file #, address, party or parcel; open files, upcoming closings, recent documents | Opens any file into the SoftPro-style header band |
+| Dashboard (home) | Clickable metric tiles (open, closing this week / 30 days, need attention, coming due, closed this month), flagged-files list, 7-week closing schedule timeline, notifications, next-14-days list, recent activity and documents | Each alert opens the file on the screen that fixes it |
+| Closing tracker | Per-file milestones (title search, buyer/seller info sheets, payoff, survey, HOA estoppel, lender package, HUD-1, closing, funding, recording) with due dates computed from open/closing dates | Overdue items flag the file; Drive documents with matching names auto-mark items received |
+| Audit log | Automatic who/when/what entry for every field change, receipt, check, wire, HUD version, document and automation action | Dashboard recent activity |
+| Contacts directory | Every contact across all files, combined by name, with their files and next closing | Name autocomplete fills contact details on any file |
+| File sidebar | Search every saved file by file #, address, party or parcel; open files, upcoming closings, recent documents | Opens any file into the SoftPro-style header band |
 | Order | File/loan numbers, dates, property, legal, price, loan, deposit | HUD boxes B, G, I; lines 101, 201, 202 |
 | Contacts | Buyer, seller, lender, settlement agent, underwriter, brokers, tax collector, recorder, payoff lenders | HUD boxes D, E, F, H; every payee dropdown |
 | Prorations | Annual tax/assessment, period, paid/unpaid | Lines 106–112 / 406–412 or 210–219 / 510–519 |
