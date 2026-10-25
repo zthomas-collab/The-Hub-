@@ -1132,6 +1132,10 @@ const GRANT_TPL='That said Grantor has remained and released and by these presen
 const EXCEPT_DEFAULT='All such valid and enforceable easements, restrictions and rights of way of record and the lien of ad valorem taxes for the current year which the grantee herein assumes and agrees to pay.';
 function deedDefaults(){return{granting:'standard',date:'',preparedBy:'',returnTo:'',brief:'',city:'',township:'',primary:'',vesting:'',marital:'',spouse:'',
   grantorType:'individual',entityName:'',entityState:'North Carolina',signer:'',signerTitle:'',ackState:'',ackCounty:'',ackMode:'each',ack:{},exceptions:EXCEPT_DEFAULT,version:0,generated:''}}
+/* Property state, as a full name: from the property address, falling back to the state picked on Transfer & excise taxes. */
+function deedState(o){const raw=String(o.property.state||'').trim();const code=raw.toUpperCase();
+  if(TAX_RULES[code])return TAX_RULES[code].name;const byName=Object.values(TAX_RULES).find(r=>r.name.toLowerCase()===raw.toLowerCase());if(byName)return byName.name;
+  const t=taxState(o);return t?TAX_RULES[t].name:raw}
 const deedExcise=C=>{const t=C.tax.slots;return r2(t.stateDeed.b+t.stateDeed.s+t.localDeed.b+t.localDeed.s)};
 const nameSet=s=>String(s||'').toLowerCase().split(/\s*(?:,|&|\band\b)\s*/).map(x=>x.replace(/[^a-z0-9 ]/g,'').trim()).filter(Boolean).sort().join('|');
 const PTYPES=[['individual','Individual'],['llc','LLC'],['corp','Corporation'],['trust','Trust'],['partnership','Partnership']];
@@ -1163,7 +1167,8 @@ function deedChecks(o,C){const d=o.deed,P=o.property,out=[];const add=(sev,label
   if(!vested)add('warn','Vested owner of record entered','Enter the owner of record from the title search to compare against the grantor','f-property-vestedOwner');
   else if(nameSet(vested)!==nameSet(grantor))add('error','Grantor matches owner of record',`Title shows “${vested}”; the deed names “${grantor||'no grantor'}”. Resolve the chain of title before signing.`,'f-property-vestedOwner');
   if(sellers.some(c=>!isEnt(c))&&!d.marital)add('warn','Grantor marital status stated','North Carolina deeds normally state marital status; a spouse must join to release marital rights','f-deed-marital');
-  if(String(P.state||'').trim().toUpperCase()!=='NC'&&taxState(o)!=='NC')add('warn','Property is in North Carolina','This form is a North Carolina deed. Use the correct state form for other properties.','f-property-state');
+  const dst=deedState(o);if(!dst)add('error','Property state entered','The deed names the state where the property sits. Enter it on Order & property','f-property-state');
+  else if(dst!=='North Carolina')add('warn',`Deed form suits ${dst}`,`The wording follows North Carolina practice. Have ${dst} counsel confirm the granting clause, covenants, acknowledgment and recording margins.`,'f-property-state');
   if(num(o.salesPrice)>0&&!deedExcise(C))add('warn','Excise tax calculated','No deed tax was calculated. Check Transfer & excise taxes','');
   if(d.granting==='template')add('error','Granting clause matches a warranty deed','The uploaded wording (“remise, release … all right, title, claim and interest”) is quitclaim language inside a general warranty deed. Use the warranty clause unless counsel approves.','f-deed-granting');
   return out}
@@ -1182,7 +1187,7 @@ function deedDoc(o,C){const d=o.deed,P=o.property;
   const deriv=`The property hereinabove described was acquired by Grantor by instrument recorded in Book ${B(P.priorBook,6)} at Page ${B(P.priorPage,6)}${P.county?`, ${esc(P.county)} County Registry`:''}${P.priorDate?`, recorded ${esc(fmtDate(P.priorDate))}`:''}${P.priorInstrument?` (${esc(P.priorInstrument)})`:''}.`;
   const plat=P.platBook||P.platPage?`<p>A map showing the above described property is recorded in Plat Book ${B(P.platBook,6)} at Page ${B(P.platPage,6)}.</p>`:'';
   const BL=w=>`<span class="blank" style="min-width:${w}ch"></span>`;
-  const ackStD=d.ackState||(String(P.state||'').toUpperCase()==='NC'?'North Carolina':P.state||''),ackCoD=d.ackCounty||P.county||'';
+  const stName=deedState(o);const ackStD=d.ackState||stName,ackCoD=d.ackCounty||P.county||'';
   const inWit='<p>IN WITNESS WHEREOF, the Grantor has duly executed the foregoing as of the day and year first above written.</p>';
   const notary=(who,key,body)=>{const a=(d.ack&&d.ack[key])||{};const st=esc(a.state||ackStD),co=esc(a.county||ackCoD);
     return `<p class="dstate">STATE OF ${st||BL(14)} &nbsp;&nbsp;&nbsp; COUNTY OF ${co||BL(14)}</p>
@@ -1201,7 +1206,7 @@ function deedDoc(o,C){const d=o.deed,P=o.property;
   execHtml=units.map((u,i)=>`<div class="dexec">${i===0?inWit:''}${u}</div>`).join('');
   return `<div class="deed" id="deed-doc">
   <div class="dtop" aria-hidden="true"></div>
-  <h3>NORTH CAROLINA GENERAL WARRANTY DEED</h3>
+  <h3>${esc((stName||'').toUpperCase())}${stName?' ':''}GENERAL WARRANTY DEED</h3>
   <table class="dhead"><tr><td>Excise Tax: <b>${exc?money(exc).replace('.00',''):'$'+'<span class="blank" style="min-width:8ch"></span>'}</b></td><td>Parcel Identifier No. ${B(P.parcel,18)}</td></tr>
   <tr><td colspan="2">Verified by <span class="blank" style="min-width:14ch"></span> County on the <span class="blank" style="min-width:5ch"></span> day of <span class="blank" style="min-width:12ch"></span>, 20<span class="blank" style="min-width:4ch"></span> &nbsp; By: <span class="blank" style="min-width:16ch"></span></td></tr>
   <tr><td colspan="2">This instrument was prepared by: ${B(d.preparedBy||firmLine(),30)}</td></tr>
@@ -1211,7 +1216,7 @@ function deedDoc(o,C){const d=o.deed,P=o.property;
   <table class="dparties"><tr><th>GRANTOR</th><th>GRANTEE</th></tr><tr><td>${grantor||'<span class="blank" style="min-width:24ch"></span>'}</td><td>${grantee||'<span class="blank" style="min-width:24ch"></span>'}</td></tr>
   <tr><td>Mailing address: ${gAddr||'<span class="blank" style="min-width:20ch"></span>'}</td><td>Mailing address: ${bAddr||'<span class="blank" style="min-width:20ch"></span>'}</td></tr></table>
   <p class="small">The designation Grantor and Grantee as used herein shall include said parties, their heirs, successors, and assigns, and shall include singular, plural, masculine, feminine or neuter as required by context.</p>
-  <p>WITNESSETH: ${d.granting==='template'?GRANT_TPL:GRANT_STD} ${where}, State of North Carolina, and more particularly described as follows:</p>
+  <p>WITNESSETH: ${d.granting==='template'?GRANT_TPL:GRANT_STD} ${where}, State of ${stName?esc(stName):BL(14)}, and more particularly described as follows:</p>
   <div class="dlegal">${legal}</div>
   <p>Property address: ${B(propAddr(o),30)}</p>
   <p>All or a portion of the property herein conveyed (${pr==='includes'?'X':'&nbsp;&nbsp;'}) includes or (${pr==='excludes'?'X':'&nbsp;&nbsp;'}) does not include the primary residence of a Grantor.</p>
@@ -1231,7 +1236,7 @@ const DEED_ACT={
     try{await DL.save({filename:`Deed_${(o.fileNo||'draft').replace(/[^\w.-]+/g,'_')}_v${o.deed.version}.html`,data:deedFileHtml(o,compute(o))});UI.deedMsg='Deed saved. Open it in a browser or Word to print.';logA(o,`Deed version ${o.deed.version} downloaded`,'doc');save()}
     catch(e){UI.deedMsg=e&&e.code==='declined'?'':e&&e.code==='rate_limited'?'A save prompt is already open.':'Downloads are not available in this view.'}refresh()},
   async deedDrive(){const o=O(),dr=driveOf(o);if(!dr.folderId){UI.deedMsg='Create or link a Drive folder for this file on Documents first.';refresh();return}
-    if(!o.deed.version)DEED_ACT.deedGenerate();const title=`NC General Warranty Deed v${o.deed.version} - ${o.fileNo||'Untitled'} - ${propAddr(o)||'No address'}`.slice(0,200);
+    if(!o.deed.version)DEED_ACT.deedGenerate();const title=`${deedState(o)?deedState(o)+' General':'General'} Warranty Deed v${o.deed.version} - ${o.fileNo||'Untitled'} - ${propAddr(o)||'No address'}`.slice(0,200);
     DRV.busy='deed';UI.deedMsg='Saving the deed to Google Drive…';refresh();
     try{const f=createdOf(await drive('create_file',{title,textContent:deedFileHtml(o,compute(o)),contentMimeType:'text/html',parentId:dr.folderId}));if(!f)throw{code:'tool_error',message:'Drive did not return the new document.'};
       addDoc(o,{...f,title:f.title||title},`Deed v${o.deed.version}`);logA(o,`Deed version ${o.deed.version} saved to Google Drive`,'doc');DRV.busy='';UI.deedMsg=`Saved “${f.title||title}” to the file’s Drive folder.`;save();render()}
@@ -1239,7 +1244,7 @@ const DEED_ACT={
   deedFocus(el){const f=el.dataset.focus;if(!f)return;const t=document.getElementById(f);if(t){t.scrollIntoView({block:'center'});t.focus()}else if(/^f-(legal|property)/.test(f))hudGoto('order',f)},
 };
 PANELS.deed=()=>{const o=O(),d=o.deed;if(!d.ack||typeof d.ack!=='object')d.ack={};const sg=deedSigners(o);sg.forEach(x=>{if(!d.ack[x.key])d.ack[x.key]={state:'',county:''}});return `
-<h1>Deed</h1><p class="lede">A North Carolina general warranty deed built from this file. Grantor and grantee come from Contacts, the legal description, parcel, county and derivation (book and page of the deed into the grantor) from Order & property, and the excise tax from Transfer & excise taxes. Edit any source and the deed updates.</p>
+<h1>Deed</h1><p class="lede">A general warranty deed for the state where the property is located${deedState(o)?` (${esc(deedState(o))})`:''}, built from this file. Grantor and grantee come from Contacts, the legal description, parcel, county and derivation (book and page of the deed into the grantor) from Order & property, and the excise tax from Transfer & excise taxes. Edit any source and the deed updates.</p>
 <div class="stack">
 <section class="panel"><div class="panel-head"><h2>Deed readiness</h2>${out(C=>{const c=deedChecks(o,C),e=c.filter(x=>x.sev==='error').length;return e?`<span class="pill bad">${e} to fix</span>`:c.length?`<span class="pill warn">${c.length} to review</span>`:'<span class="pill ok">Ready to sign</span>'})}</div>
  ${out(C=>{const c=deedChecks(o,C);return c.length?`<ul class="checks">${c.map(x=>`<li class="${x.sev}"><span class="ic">${x.sev==='error'?'✕':'!'}</span><span>${esc(x.label)}<small>${esc(x.detail)}${x.focus?` · <button class="b small" data-act="deedFocus" data-focus="${x.focus}">Fix</button>`:''}</small></span></li>`).join('')}</ul>`:'<p class="empty">Every deed field is filled and the grantor matches the owner of record.</p>'},'div')}
