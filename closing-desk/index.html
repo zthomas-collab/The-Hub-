@@ -230,6 +230,11 @@ button.tile.bad{border-color:var(--bad);background:var(--bad-bg)} button.tile.wa
 .chips{display:flex;flex-wrap:wrap;gap:4px}
 .bell{display:inline-flex;gap:6px;align-items:center}
 tr.hl td{background:var(--accent-soft)}
+.hudwrap [data-edit],.hudwrap [data-goto],.hudwrap [data-new]{cursor:pointer}
+.hudwrap td[data-edit]:hover,.hudwrap td[data-goto]:hover,.hudwrap td[data-new]:hover,.hudwrap span.sub[data-edit]:hover,.hudwrap span.sub[data-goto]:hover,
+.hudwrap [data-edit]:focus-visible,.hudwrap [data-goto]:focus-visible,.hudwrap [data-new]:focus-visible{outline:1px dashed #1c4d8c;outline-offset:-2px;background:rgba(28,77,140,.07)}
+.hudwrap td[data-edit]:empty:hover::after,.hudwrap td[data-new]:empty:hover::after,.hudwrap td[data-edit]:empty:focus-visible::after,.hudwrap td[data-new]:empty:focus-visible::after{content:"+ enter";color:#1c4d8c;font-size:9px}
+.hud-in{width:100%;min-width:70px;font:inherit;padding:1px 4px;border:1px solid #1c4d8c;border-radius:2px;background:#fff;color:#111}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -241,7 +246,7 @@ const KEY='hub-closing-desk-v1';
 const ROLES=['Buyer','Seller','Lender','Settlement Agent','Title Underwriter','Listing Broker','Selling Broker','Mortgage Payoff Lender','HOA','Tax Collector','Clerk / Recorder','Appraiser','Surveyor','Insurance Agent','Attorney','Other'];
 const LOAN_TYPES=['FHA','RHS','Conv. Unins.','VA','Conv. Ins.'];
 const GLOBAL_TABS=[['dash','Dashboard'],['crm','Contacts directory']];
-const TABS=[['order','Order & property','File set up'],['contacts','Contacts','File set up'],['tracker','Closing tracker','File set up'],['prorations','Taxes & prorations','Escrow'],['charges','Settlement charges','Escrow'],['payoffs','Payoffs & credits','Escrow'],['ledger','Trust ledger','Escrow'],['hud','HUD-1 statement','Closing'],['codes','Field codes & merge','Closing'],['docs','Documents · Drive','General'],['audit','Audit log','General'],['settings','Rates & settings','General']];
+const TABS=[['order','Order & property','File set up'],['contacts','Contacts','File set up'],['tracker','Closing tracker','File set up'],['prorations','Prorations','Escrow'],['taxes','Transfer & excise taxes','Escrow'],['charges','Settlement charges','Escrow'],['payoffs','Payoffs & credits','Escrow'],['ledger','Trust ledger','Escrow'],['hud','HUD-1 statement','Closing'],['codes','Field codes & merge','Closing'],['docs','Documents · Drive','General'],['audit','Audit log','General'],['settings','Rates & settings','General']];
 const DRIVE='Google Drive';
 
 /* ---------- utilities ---------- */
@@ -291,7 +296,11 @@ const newMs=t=>({key:t.key,label:t.label,status:'open',due:'',requested:'',recei
 function norm(o){if(!o)return o;if(!o.openedDate)o.openedDate=o.created||today();
   if(!Array.isArray(o.milestones))o.milestones=MS_TEMPLATE.map(newMs);
   else MS_TEMPLATE.forEach(t=>{if(!o.milestones.some(m=>m.key===t.key))o.milestones.push(newMs(t))});
-  if(!Array.isArray(o.audit))o.audit=[];if(!o.drive)o.drive={folderId:'',folderTitle:'',folderUrl:'',docs:[]};return o}
+  if(!Array.isArray(o.audit))o.audit=[];
+  if(!o.tax||typeof o.tax!=='object')o.tax={state:'',locality:'',ptype:'sfr',primary:true,payer:{},addOns:[],confirmed:false};if(!o.tax.payer)o.tax.payer={};if(!Array.isArray(o.tax.addOns))o.tax.addOns=[];
+  const MIG={countyDeed:'taxLocalDeed',countyMtg:'taxLocalMtg',deedStamps:'taxStateDeed',mtgStamps:'taxStateMtg',intangible:'taxOther'};
+  o.items.forEach(i=>{if(MIG[i.calc]){i.calc=MIG[i.calc];if(i.line==='1206')i.desc='Other recording taxes (intangible, note taxes)'}});
+  if(!o.drive)o.drive={folderId:'',folderTitle:'',folderUrl:'',docs:[]};return o}
 function msDue(o,m){if(m.due)return dnum(m.due);const t=MS[m.key];if(!t)return null;const cl=dnum(o.settlementDate);
   const base=t.from==='open'?dnum(o.openedDate||o.created):cl;if(base==null)return null;let d=base+t.days;if(t.cap!=null&&cl!=null)d=Math.min(d,cl+t.cap);return d}
 const msAuto=(o,C,m)=>!!(MS_AUTO[m.key]&&MS_AUTO[m.key](o,C));
@@ -327,7 +336,8 @@ function fieldLabel(path){const o=O(),p=path.split('.');const sub=f=>SUBF[f]||f;
   switch(p[0]){case 'items':return row?`Line ${row.line}${row.sub?' '+row.sub:''} ${sub(p[2])}`:'Charge';
     case 'contacts':return row?`Contact ${row.name||row.role} ${sub(p[2])}`:'Contact';case 'prorations':return row?`Proration (${row.kind}) ${sub(p[2])}`:'Proration';
     case 'payoffs':return `Payoff ${sub(p[2])}`;case 'adjustments':return `Credit/adjustment ${sub(p[2])}`;case 'receipts':return `Receipt ${sub(p[2])}`;
-    case 'milestones':return row?`Tracker: ${row.label} ${sub(p[2])}`:'Tracker';case 'settings':return 'Setting '+p.slice(1).join(' ');
+    case 'milestones':return row?`Tracker: ${row.label} ${sub(p[2])}`:'Tracker';
+    case 'tax':return p[1]==='addOns'?`Local tax ${sub(p[3])}`:'Transfer tax '+({state:'state',locality:'locality',ptype:'property type',primary:'primary residence',confirmed:'rates confirmed'}[p[1]]||p[1]);case 'settings':return 'Setting '+p.slice(1).join(' ');
     case 'commission':return p[1]==='splits'?`Commission split ${sub(p[3])}`:'Commission '+sub(p[1])}
   return path}
 function valDisp(path,v,isMoney){if(v==='')return '(blank)';const o=O();if(isMoney)return money(num(v));
@@ -375,11 +385,11 @@ function newOrder(){
     it(1202,'Deed',{sub:'deed',role:'Clerk / Recorder',roll:'1201'}),
     it(1202,'Mortgage',{sub:'mortgage',role:'Clerk / Recorder',roll:'1201'}),
     it(1202,'Release',{sub:'release',role:'Clerk / Recorder',roll:'1201'}),
-    it(1204,'Deed',{sub:'deed',role:'Clerk / Recorder',calc:'countyDeed',party:'S',roll:'1203'}),
-    it(1204,'Mortgage',{sub:'mortgage',role:'Clerk / Recorder',calc:'countyMtg',party:'B',roll:'1203'}),
-    it(1205,'Deed',{sub:'deed',role:'Clerk / Recorder',calc:'deedStamps',party:'S',roll:'1203'}),
-    it(1205,'Mortgage',{sub:'mortgage',role:'Clerk / Recorder',calc:'mtgStamps',party:'B',roll:'1203'}),
-    it(1206,'Intangible tax on mortgage',{role:'Clerk / Recorder',calc:'intangible',party:'B',roll:'1203'}),
+    it(1204,'Deed',{sub:'deed',role:'Clerk / Recorder',calc:'taxLocalDeed',roll:'1203'}),
+    it(1204,'Mortgage',{sub:'mortgage',role:'Clerk / Recorder',calc:'taxLocalMtg',roll:'1203'}),
+    it(1205,'Deed',{sub:'deed',role:'Clerk / Recorder',calc:'taxStateDeed',roll:'1203'}),
+    it(1205,'Mortgage',{sub:'mortgage',role:'Clerk / Recorder',calc:'taxStateMtg',roll:'1203'}),
+    it(1206,'Other recording taxes (intangible, note taxes)',{role:'Clerk / Recorder',calc:'taxOther',roll:'1203'}),
     it(1207,'',{custom:true}),
     it(1302,'',{custom:true,roll:'1301'}),it(1303,'',{custom:true,roll:'1301'}),
     it(1304,'',{custom:true}),it(1305,'',{custom:true}),
@@ -397,7 +407,7 @@ function newOrder(){
       {id:uid(),kind:'assess',label:'',annual:0,from:'',to:'',status:'paid',note:''}],
     payoffs:[{id:uid(),desc:'Payoff of first mortgage loan',payeeId:'',amount:0},{id:uid(),desc:'Payoff of second mortgage loan',payeeId:'',amount:0}],
     adjustments:[],items,settings:defSettings(),
-    receipts:[],issued:{},nextCheck:1001,nextWire:1,openedDate:today(),milestones:MS_TEMPLATE.map(newMs),audit:[],drive:{folderId:'',folderTitle:'',folderUrl:'',docs:[]},
+    receipts:[],issued:{},nextCheck:1001,nextWire:1,openedDate:today(),milestones:MS_TEMPLATE.map(newMs),audit:[],tax:{state:'',locality:'',ptype:'sfr',primary:true,payer:{},addOns:[],confirmed:false},drive:{folderId:'',folderTitle:'',folderUrl:'',docs:[]},
     mergeTemplate:'CLOSING INSTRUCTIONS\nFile {{Order.FileNumber}}  |  Settlement date {{Order.ClosingDate}}\n\nProperty: {{Order.Property.Address}}\nParcel ID: {{Order.Property.ParcelID}}\nLegal: {{Order.Property.Legal}}\n\nBuyer(s): {{Order.Buyer.Names}}\nSeller(s): {{Order.Seller.Names}}\nLender: {{Order.Lender.Name}}  |  Loan amount {{Order.Loan.Amount}}\n\nCash due from borrower (line 303): {{HUD.L303}}\nCash due to seller (line 603): {{HUD.L603}}\nTrust ledger balance: {{Ledger.FileBalance}}'
   };
 }
@@ -464,6 +474,139 @@ const driveOf=o=>o.drive||(o.drive={folderId:'',folderTitle:'',folderUrl:'',docs
 function refreshNames(){if(!USER)return;const ids=[...new Set(DB.orders.flatMap(o=>(o.audit||[]).map(a=>a.by)).filter(id=>id&&id!==ME&&!(id in NAMES)))].slice(0,64);
   if(!ids.length)return;USER.profiles(ids).then(ps=>{ids.forEach(id=>{NAMES[id]=(ps&&ps[id]&&ps[id].name)||''});refresh()}).catch(()=>{})}
 
+/* ---------- state transfer / excise tax rules ----------
+   Each component: base (price | net = price less assumed loans | loan), a formula, the customary payer,
+   the HUD slot it posts to, and v:1 where local rates or recent changes must be confirmed. */
+const TAX_SLOTS={stateDeed:['1205','deed'],localDeed:['1204','deed'],stateMtg:['1205','mortgage'],localMtg:['1204','mortgage'],other:['1206','']};
+const TAX_CALCS={taxStateDeed:'stateDeed',taxLocalDeed:'localDeed',taxStateMtg:'stateMtg',taxLocalMtg:'localMtg',taxOther:'other'};
+const PER=(per,rate,o={})=>({per,rate,up:true,...o});            /* rate per `per` dollars, each part or fraction counted */
+const PCT=(pct,o={})=>({pct,...o});
+const MARG=(tiers,o={})=>({tiers,mode:'marginal',...o});          /* [[upTo (0 = no cap), % on that slice]] */
+const WHOLE=(tiers,o={})=>({tiers,mode:'whole',...o});            /* bracket picked by base, % applied to all of it */
+const MARGPER=(per,tiers,o={})=>({per,tiers,mode:'marginalPer',...o}); /* [[upTo, rate per `per`]] */
+const T=(id,label,slot,base,f,payer,o={})=>({id,label,slot,base,f,payer,...o});
+const res=x=>x.ptype!=='other',sfr=x=>x.ptype==='sfr';
+const TAX_RULES={
+ AL:{name:'Alabama',comps:[T('al_deed','Deed tax, $0.50 per $500','stateDeed','net',PER(500,0.5),'B'),T('al_mtg','Mortgage privilege tax, $0.15 per $100','stateMtg','loan',PER(100,0.15),'B')],note:'Deed tax is commonly paid by the buyer; contracts can shift it.'},
+ AK:{name:'Alaska',comps:[],note:'No state or local real estate transfer tax.'},
+ AZ:{name:'Arizona',comps:[],note:'No transfer tax. The $2 affidavit of property value fee is a recording charge, not a tax.'},
+ AR:{name:'Arkansas',comps:[T('ar','Real property transfer tax, $3.30 per $1,000','stateDeed','price',PER(1000,3.3),'S')],note:'The statute makes buyer and seller jointly liable; the seller customarily pays.'},
+ CA:{name:'California',comps:[T('ca','County documentary transfer tax, $1.10 per $1,000','localDeed','net',PER(500,0.55),'S')],
+   loc:{la:{label:'City of Los Angeles',comps:[T('ca_la','City of LA transfer tax, $4.50 per $1,000','localDeed','net',PER(500,2.25),'S',{v:1}),
+         T('ca_ula','LA Measure ULA (4% over ~$5.3M, 5.5% over ~$10.6M; thresholds reset each July)','localDeed','price',WHOLE([[5300000,0],[10600000,4],[0,5.5]]),'S',{v:1})]},
+        oak:{label:'City of Oakland',comps:[T('ca_oak','Oakland transfer tax, graduated 1% to 2.5%','localDeed','net',WHOLE([[300000,1],[2000000,1.5],[5000000,1.75],[0,2.5]]),'S',{v:1})]}},
+   note:'Many cities add their own tax (San Francisco, Berkeley, San Jose and others). Pick a listed city or enter the city rate as a local add-on.'},
+ CO:{name:'Colorado',comps:[T('co','State documentary fee, $0.01 per $100','stateDeed','price',PER(100,0.01),'B')],note:'Some home-rule towns (Aspen, Telluride, Vail and others) levy their own transfer taxes; add them below.'},
+ CT:{name:'Connecticut',comps:[T('ct_res','State conveyance tax: 0.75% to $800k, 1.25% to $2.5M, 2.25% above','stateDeed','price',MARG([[800000,0.75],[2500000,1.25],[0,2.25]]),'S',{when:res}),
+   T('ct_com','State conveyance tax, non-residential 1.25%','stateDeed','price',PCT(1.25),'S',{when:x=>!res(x)}),T('ct_muni','Municipal conveyance tax 0.25%','localDeed','price',PCT(0.25),'S',{v:1})],
+   note:'Targeted investment communities charge 0.50% municipal tax; add the extra 0.25% as a local add-on.'},
+ DE:{name:'Delaware',comps:[T('de_state','State realty transfer tax 2.5%','stateDeed','price',PCT(2.5),'split',{v:1}),T('de_local','County / municipal realty transfer tax 1.5%','localDeed','price',PCT(1.5),'split',{v:1})],
+   note:'Split equally by custom. First-time-buyer reductions and some local rates are not modeled.'},
+ DC:{name:'District of Columbia',comps:[T('dc_rec','Deed recordation tax: 1.1% under $400k, 1.45% at $400k+','stateDeed','price',WHOLE([[399999.99,1.1],[0,1.45]]),'B',{when:res,v:1}),
+   T('dc_xfer','Deed transfer tax: 1.1% under $400k, 1.45% at $400k+','localDeed','price',WHOLE([[399999.99,1.1],[0,1.45]]),'S',{when:res,v:1}),
+   T('dc_com','Commercial recordation and transfer taxes, 2.5% each at $2M+ (1.45% below)','stateDeed','price',WHOLE([[1999999.99,2.9],[0,5]]),'split',{when:x=>!res(x),v:1})],
+   note:'First-time DC homebuyers may qualify for a reduced recordation rate.'},
+ FL:{name:'Florida',comps:[T('fl_deed','Documentary stamp tax on deed, $0.70 per $100','stateDeed','price',PER(100,0.70),'S',{when:x=>x.loc!=='md'}),
+   T('fl_deed_md','Miami-Dade documentary stamp tax on deed, $0.60 per $100','stateDeed','price',PER(100,0.60),'S',{when:x=>x.loc==='md'}),
+   T('fl_sur_md','Miami-Dade surtax, $0.45 per $100 (not single-family)','localDeed','price',PER(100,0.45),'S',{when:x=>x.loc==='md'&&!sfr(x)}),
+   T('fl_mtg','Documentary stamp tax on note, $0.35 per $100','stateMtg','loan',PER(100,0.35),'B'),T('fl_int','Nonrecurring intangible tax, 0.2% of the mortgage','other','loan',PCT(0.2),'B')],
+   loc:{md:{label:'Miami-Dade County'}},note:'Seller pays deed stamps by custom (buyer in some Southwest Florida counties). The buyer pays note stamps and intangible tax.'},
+ GA:{name:'Georgia',comps:[T('ga','Real estate transfer tax, $0.10 per $100','stateDeed','net',PER(100,0.10),'S'),T('ga_int','Intangible recording tax, $1.50 per $500 of the loan (max $25,000)','other','loan',PER(500,1.5,{max:25000}),'B')]},
+ HI:{name:'Hawaii',comps:[T('hi_oo','Conveyance tax, owner-occupant rates ($0.10 to $1.00 per $100)','stateDeed','price',WHOLE([[599999.99,0.10],[999999.99,0.20],[1999999.99,0.30],[3999999.99,0.50],[5999999.99,0.70],[9999999.99,0.90],[0,1.00]]),'S',{when:x=>x.primary,v:1}),
+   T('hi_noo','Conveyance tax, non-owner-occupant rates ($0.15 to $1.25 per $100)','stateDeed','price',WHOLE([[599999.99,0.15],[999999.99,0.25],[1999999.99,0.40],[3999999.99,0.60],[5999999.99,0.85],[9999999.99,1.10],[0,1.25]]),'S',{when:x=>!x.primary,v:1})],
+   note:'Owner-occupant rates require the buyer to claim a home exemption. Hawaii revised its top brackets recently; confirm.'},
+ ID:{name:'Idaho',comps:[],note:'No transfer tax.'},
+ IL:{name:'Illinois',comps:[T('il_state','State transfer tax, $0.50 per $500','stateDeed','net',PER(500,0.5),'S'),T('il_cty','County transfer tax, $0.25 per $500','localDeed','net',PER(500,0.25),'S')],
+   loc:{chi:{label:'City of Chicago',comps:[T('il_chi','Chicago real property transfer tax, $3.75 per $500 (buyer)','localDeed','net',PER(500,3.75),'B',{v:1}),T('il_cta','Chicago CTA portion, $1.50 per $500 (seller)','localDeed','net',PER(500,1.5),'S',{v:1})]}},
+   note:'Several home-rule municipalities (Evanston, Oak Park and others) add their own tax.'},
+ IN:{name:'Indiana',comps:[],note:'No transfer tax; a sales disclosure fee is charged at recording.'},
+ IA:{name:'Iowa',comps:[T('ia','Real estate transfer tax, $0.80 per $500 (first $500 exempt)','stateDeed','price',PER(500,0.8,{exempt:500}),'S')]},
+ KS:{name:'Kansas',comps:[],note:'No transfer tax; the mortgage registration tax was repealed.'},
+ KY:{name:'Kentucky',comps:[T('ky','Real estate transfer tax, $0.50 per $500','stateDeed','price',PER(500,0.5),'S')]},
+ LA:{name:'Louisiana',comps:[],note:'No state transfer tax. Some parishes charge flat transfer fees; add them below.'},
+ ME:{name:'Maine',comps:[T('me','Real estate transfer tax, $2.20 per $500, split','stateDeed','price',PER(500,2.2),'split')]},
+ MD:{name:'Maryland',comps:[T('md_state','State transfer tax 0.5%','stateDeed','price',PCT(0.5),'split',{v:1})],
+   note:'County transfer and recordation taxes vary widely (recordation runs about $2.50 to $6.00 per $500). Enter them as local add-ons. First-time buyers pay a reduced state rate.'},
+ MA:{name:'Massachusetts',comps:[T('ma','Deed excise, $2.28 per $500','stateDeed','price',PER(500,2.28),'S',{when:x=>x.loc!=='bar'}),T('ma_bar','Deed excise, Barnstable County $1.71 per $500','stateDeed','price',PER(500,1.71),'S',{when:x=>x.loc==='bar',v:1})],
+   loc:{bar:{label:'Barnstable County'}}},
+ MI:{name:'Michigan',comps:[T('mi_state','State real estate transfer tax, $3.75 per $500','stateDeed','price',PER(500,3.75),'S'),T('mi_cty','County transfer tax, $0.55 per $500','localDeed','price',PER(500,0.55),'S',{v:1})],
+   note:'Counties over 2 million people may charge up to $0.75 per $500. A principal-residence exemption from the state tax can apply when the home sold for less than its SEV at purchase.'},
+ MN:{name:'Minnesota',comps:[T('mn_deed','Deed tax 0.33%','stateDeed','net',PCT(0.33),'S'),T('mn_mrt','Mortgage registry tax 0.24%','stateMtg','loan',PCT(0.24),'B'),
+   T('mn_hr_deed','Hennepin / Ramsey additional deed tax 0.01%','localDeed','net',PCT(0.01),'S',{when:x=>x.loc==='hr',v:1}),T('mn_hr_mrt','Hennepin / Ramsey additional mortgage tax 0.01%','localMtg','loan',PCT(0.01),'B',{when:x=>x.loc==='hr',v:1})],
+   loc:{hr:{label:'Hennepin or Ramsey County'}}},
+ MS:{name:'Mississippi',comps:[],note:'No transfer tax.'},
+ MO:{name:'Missouri',comps:[],note:'No transfer tax.'},
+ MT:{name:'Montana',comps:[],note:'No transfer tax.'},
+ NE:{name:'Nebraska',comps:[T('ne','Documentary stamp tax, $2.25 per $1,000','stateDeed','price',PER(1000,2.25),'S')]},
+ NV:{name:'Nevada',comps:[T('nv','Real property transfer tax, $1.95 per $500','stateDeed','net',PER(500,1.95),'S',{when:x=>!['clark','washoe'].includes(x.loc),v:1}),
+   T('nv_cw','Real property transfer tax, $2.55 per $500','stateDeed','net',PER(500,2.55),'S',{when:x=>['clark','washoe'].includes(x.loc),v:1})],
+   loc:{clark:{label:'Clark County'},washoe:{label:'Washoe County'}},note:'Who pays is negotiable; the seller usually does.'},
+ NH:{name:'New Hampshire',comps:[T('nh_b','Real estate transfer tax, buyer half, $0.75 per $100','stateDeed','price',PER(100,0.75,{min:20}),'B'),T('nh_s','Real estate transfer tax, seller half, $0.75 per $100','stateDeed','price',PER(100,0.75,{min:20}),'S')]},
+ NJ:{name:'New Jersey',comps:[T('nj_rtf','Realty transfer fee, graduated $2.00 to $6.05 per $500','stateDeed','price',MARGPER(500,[[150000,2.00],[200000,3.35],[550000,3.90],[850000,4.80],[1000000,5.30],[0,6.05]]),'S',{v:1}),
+   T('nj_mansion','Graduated mansion fee over $1M (1% to 3.5%)','stateDeed','price',WHOLE([[1000000,0],[2000000,1],[2500000,2],[3000000,2.5],[3500000,3],[0,3.5]]),'S',{when:res,v:1})],
+   note:'For contracts from July 2025 the mansion fee is graduated and paid by the seller; before that it was 1% paid by the buyer. Reduced RTF rates for seniors, disabled and low-income sellers are not modeled.'},
+ NM:{name:'New Mexico',comps:[],note:'No transfer tax.'},
+ NY:{name:'New York',comps:[T('ny_state','State real estate transfer tax, $2 per $500','stateDeed','net',PER(500,2),'S',{when:x=>!(x.loc==='nyc'&&res(x)&&x.price>=3000000)}),
+   T('ny_state_hi','State transfer tax, NYC residential $3M+ (0.65%)','stateDeed','net',PCT(0.65),'S',{when:x=>x.loc==='nyc'&&res(x)&&x.price>=3000000,v:1}),
+   T('ny_mansion','Mansion tax, 1% at $1M+ (buyer)','stateDeed','price',WHOLE([[999999.99,0],[0,1]]),'B',{when:x=>x.loc!=='nyc'&&res(x)}),
+   T('ny_mansion_nyc','NYC mansion tax, graduated 1% to 3.9% at $1M+ (buyer)','stateDeed','price',WHOLE([[999999.99,0],[1999999.99,1],[2999999.99,1.25],[4999999.99,1.5],[9999999.99,2.25],[14999999.99,3.25],[19999999.99,3.5],[24999999.99,3.75],[0,3.9]]),'B',{when:x=>x.loc==='nyc'&&res(x),v:1}),
+   T('ny_rptt','NYC real property transfer tax: 1% to $500k, 1.425% above','localDeed','net',WHOLE([[500000,1],[0,1.425]]),'S',{when:x=>x.loc==='nyc'&&res(x),v:1}),
+   T('ny_mrt','Mortgage recording tax, about 1.05% outside NYC (varies by county)','stateMtg','loan',PCT(1.05),'B',{when:x=>x.loc!=='nyc',v:1}),
+   T('ny_mrt_nyc','NYC mortgage recording tax: 1.8% under $500k, 1.925% at $500k+','stateMtg','loan',WHOLE([[499999.99,1.8],[0,1.925]]),'B',{when:x=>x.loc==='nyc',v:1})],
+   loc:{nyc:{label:'New York City'}},note:'Mortgage recording tax rates differ by county, and lenders pay part of it on 1–6 family homes. Co-ops are taxed differently.'},
+ NC:{name:'North Carolina',comps:[T('nc','Excise tax (revenue stamps), $1 per $500','stateDeed','price',PER(500,1),'S')]},
+ ND:{name:'North Dakota',comps:[],note:'No transfer tax.'},
+ OH:{name:'Ohio',comps:[T('oh_state','State conveyance fee, $1 per $1,000','stateDeed','price',PER(1000,1),'S'),T('oh_cty','County permissive conveyance fee, up to $3 per $1,000','localDeed','price',PER(1000,3),'S',{v:1})],note:'The county fee varies by county; adjust the local add-on if yours is lower.'},
+ OK:{name:'Oklahoma',comps:[T('ok','Documentary stamp tax, $0.75 per $500','stateDeed','price',PER(500,0.75),'S')]},
+ OR:{name:'Oregon',comps:[T('or_wash','Washington County transfer tax, $1 per $1,000','localDeed','price',PER(1000,1),'S',{when:x=>x.loc==='wash'})],loc:{wash:{label:'Washington County'}},note:'No statewide tax; only Washington County charges one.'},
+ PA:{name:'Pennsylvania',comps:[T('pa_state','State realty transfer tax 1%','stateDeed','price',PCT(1),'split'),
+   T('pa_local','Local realty transfer tax, usually 1%','localDeed','price',PCT(1),'split',{when:x=>!['phl','pgh'].includes(x.loc),v:1}),
+   T('pa_phl','Philadelphia realty transfer tax 3.278%','localDeed','price',PCT(3.278),'split',{when:x=>x.loc==='phl',v:1}),
+   T('pa_pgh','Pittsburgh city and school transfer tax 4%','localDeed','price',PCT(4),'split',{when:x=>x.loc==='pgh',v:1})],
+   loc:{phl:{label:'Philadelphia'},pgh:{label:'Pittsburgh'}},note:'Buyer and seller split the tax equally by custom. Many municipalities and school districts charge more than 1%.'},
+ RI:{name:'Rhode Island',comps:[T('ri','Real estate conveyance tax, $2.30 per $500','stateDeed','price',PER(500,2.3),'S'),
+   T('ri_hi','Additional conveyance tax on residential value above $800,000, $2.30 per $500','stateDeed','price',PER(500,2.3,{exempt:800000}),'S',{when:res,v:1})]},
+ SC:{name:'South Carolina',comps:[T('sc','Deed recording fee, $1.85 per $500 (state $1.30 + county $0.55)','stateDeed','price',PER(500,1.85),'S')]},
+ SD:{name:'South Dakota',comps:[T('sd','Real estate transfer fee, $0.50 per $500','stateDeed','price',PER(500,0.5),'S')]},
+ TN:{name:'Tennessee',comps:[T('tn','Transfer tax, $0.37 per $100','stateDeed','price',PER(100,0.37,{up:false}),'B'),T('tn_mtg','Mortgage tax, $0.115 per $100 above $2,000','stateMtg','loan',PER(100,0.115,{up:false,exempt:2000}),'B')]},
+ TX:{name:'Texas',comps:[],note:'No transfer tax.'},
+ UT:{name:'Utah',comps:[],note:'No transfer tax.'},
+ VT:{name:'Vermont',comps:[T('vt_pr','Property transfer tax, principal residence: 0.5% on first $100k, 1.45% above','stateDeed','price',MARG([[100000,0.5],[0,1.45]]),'B',{when:x=>x.primary,v:1}),
+   T('vt','Property transfer tax 1.45% (includes clean water surcharge)','stateDeed','price',PCT(1.45),'B',{when:x=>!x.primary,v:1})],note:'Buyer pays. First-time buyer exemptions are not modeled.'},
+ VA:{name:'Virginia',comps:[T('va_rec','State recordation tax on deed, $0.25 per $100 (buyer)','stateDeed','price',PER(100,0.25),'B'),T('va_rec_l','Local recordation tax on deed, 1/3 of state rate','localDeed','price',PER(100,0.25/3),'B'),
+   T('va_grantor','Grantor tax, $0.50 per $500 (seller)','stateDeed','net',PER(500,0.5),'S'),T('va_crf','Regional congestion relief fee, $0.15 per $100 (seller)','localDeed','price',PER(100,0.15),'S',{when:x=>x.loc==='nova',v:1}),
+   T('va_dot','State recordation tax on deed of trust, $0.25 per $100','stateMtg','loan',PER(100,0.25),'B'),T('va_dot_l','Local recordation tax on deed of trust, 1/3 of state rate','localMtg','loan',PER(100,0.25/3),'B')],
+   loc:{nova:{label:'Northern Virginia or Hampton Roads'}}},
+ WA:{name:'Washington',comps:[T('wa','State REET, graduated: 1.1% to $525k, 1.28% to $1.525M, 2.75% to $3.025M, 3% above','stateDeed','price',MARG([[525000,1.1],[1525000,1.28],[3025000,2.75],[0,3.0]]),'S',{v:1}),
+   T('wa_local','Local REET, usually 0.5%','localDeed','price',PCT(0.5),'S',{v:1})],note:'State thresholds reset every four years and recent legislation changed the top rate; confirm before closing.'},
+ WV:{name:'West Virginia',comps:[T('wv_state','State excise tax, $1.10 per $500','stateDeed','price',PER(500,1.1),'S',{v:1}),T('wv_cty','County excise tax, $0.55 per $500','localDeed','price',PER(500,0.55),'S',{v:1})]},
+ WI:{name:'Wisconsin',comps:[T('wi','Real estate transfer fee, $0.30 per $100','stateDeed','price',PER(100,0.30),'S')]},
+ WY:{name:'Wyoming',comps:[],note:'No transfer tax.'},
+};
+const TAX_AS_OF='Built-in rules reflect state statutes and common local rates as known in mid-2025.';
+function taxFormula(f,base){
+  if(f.pct!=null)return r2(base*f.pct/100);
+  if(f.per){const taxable=Math.max(0,base-num(f.exempt));if(f.mode==='marginalPer'){let prev=0,t=0;for(const [cap,rate] of f.tiers){const c=cap>0?cap:Infinity;const slice=Math.min(base,c)-prev;if(slice<=0)break;t+=Math.ceil(slice/f.per)*rate;prev=c}return r2(t)}
+    let amt=(f.up===false?taxable/f.per:Math.ceil(taxable/f.per))*f.rate;if(taxable>0&&f.min)amt=Math.max(amt,f.min);if(f.max)amt=Math.min(amt,f.max);return r2(amt)}
+  if(f.mode==='marginal'){let prev=0,t=0;for(const [cap,p] of f.tiers){const c=cap>0?cap:Infinity;const slice=Math.min(base,c)-prev;if(slice<=0)break;t+=slice*p/100;prev=c}return r2(t)}
+  if(f.mode==='whole'){for(const [cap,p] of f.tiers){if(cap<=0||base<=cap)return r2(base*p/100)}}
+  return 0}
+function taxState(o){const t=o.tax||{};const s=(t.state||String(o.property.state||'').trim().toUpperCase()).slice(0,2);return TAX_RULES[s]?s:''}
+function taxCalc(o){
+  const t=o.tax,st=taxState(o),rule=TAX_RULES[st];const price=num(o.salesPrice),loan=num(o.loanAmount);
+  const x={price,loan,loc:t.locality||'',ptype:t.ptype||'sfr',primary:t.primary!==false};
+  const bases={price,net:Math.max(0,price-num(o.existingLoan)),loan};
+  const R={state:st,rule,comps:[],slots:{}};Object.keys(TAX_SLOTS).forEach(k=>R.slots[k]={b:0,s:0});
+  const add=(c,amt,local)=>{const payer=(t.payer&&t.payer[c.id])||c.payer;let b=0,s=0;if(payer==='B')b=amt;else if(payer==='S')s=amt;else{b=r2(amt/2);s=r2(amt-b)}
+    R.slots[c.slot].b=r2(R.slots[c.slot].b+b);R.slots[c.slot].s=r2(R.slots[c.slot].s+s);R.comps.push({...c,amount:amt,payerNow:payer,b,s,baseAmt:bases[c.base],local})};
+  if(rule){const comps=[...rule.comps,...((rule.loc&&rule.loc[x.loc]&&rule.loc[x.loc].comps)||[])];
+    for(const c of comps){if(c.when&&!c.when(x))continue;add(c,taxFormula(c.f,bases[c.base]),false)}}
+  (t.addOns||[]).forEach((a,i)=>{const pct=num(a.pct),flat=num(a.flat);if(!pct&&!flat)return;const base=a.base==='loan'?loan:price;
+    add({id:'add'+i,label:a.label||'Local add-on',slot:a.base==='loan'?'localMtg':'localDeed',base:a.base==='loan'?'loan':'price',payer:a.payer||'S',f:{pct},v:0},r2(base*pct/100+flat),true)});
+  R.verify=R.comps.some(c=>c.v&&c.amount);R.total=r2(R.comps.reduce((a,c)=>a+c.amount,0));return R}
+const fDesc=f=>f.pct!=null?`${f.pct}%`:f.per?(f.mode==='marginalPer'?`graduated per $${f.per}`:`$${f.rate} per $${f.per}${f.exempt?` over $${num(f.exempt).toLocaleString('en-US')}`:''}`):f.mode==='marginal'?'graduated (marginal)':'bracket rate on full amount';
+
+
 /* ---------- calculation engine ---------- */
 const DEF={101:'Contract sales price',102:'Personal property',103:'Settlement charges to borrower (line 1400)',106:'City/town taxes',107:'County taxes',108:'Assessments',
   120:'Gross Amount Due from Borrower',201:'Deposit or earnest money',202:'Principal amount of new loan(s)',203:'Existing loan(s) taken subject to',
@@ -528,10 +671,12 @@ function compute(o){
     case 'mtgStamps':return stamps(loan,S.mtgRate);case 'countyMtg':return stamps(loan,S.countyMtgRate);
     case 'intangible':return r2(loan*num(S.intangiblePct)/100)}return 0};
 
+  C.tax=taxCalc(norm(o));
   let B=0,Sx=0;
   for(const it of o.items){
     let b=num(it.b),s=num(it.s);
-    if(it.calc&&(!it.override||it.calc==='reserve')){const a=calcAmt(it);if(it.party==='S'){b=0;s=a}else if(it.party==='split'){b=r2(a/2);s=r2(a-b)}else{b=a;s=0}}
+    if(TAX_CALCS[it.calc]&&!it.override){const sl=C.tax.slots[TAX_CALCS[it.calc]];b=sl.b;s=sl.s}
+    else if(it.calc&&(!it.override||it.calc==='reserve')){const a=calcAmt(it);if(it.party==='S'){b=0;s=a}else if(it.party==='split'){b=r2(a/2);s=r2(a-b)}else{b=a;s=0}}
     if(it.bOnly)s=0;b=r2(b);s=r2(s);C.it[it.id]={b,s};
     if(it.roll)C.roll[it.roll]=r2((C.roll[it.roll]||0)+b);B+=b;Sx+=s;
   }
@@ -634,6 +779,8 @@ function compute(o){
     else if(r2(d.amt)!==r2(iss.amount))bad.push(`${iss.method} ${iss.no} to ${iss.name} was issued for ${money(iss.amount)}; statement now shows ${money(d.amt)}. Void and reissue.`)}
   chk(!bad.length,'Issued checks and wires match the statement',bad.join(' ')||(Object.keys(o.issued).length?'No mismatches':'Nothing issued yet'));
   const w=(ok,label,detail)=>chk(ok,label,detail,'warn');
+  const tst=taxState(o);w(!(price>0&&!tst),'Transfer tax state selected',tst?`${TAX_RULES[tst].name} rules applied (${money(C.tax.total)})`:'Choose the state on Transfer & excise taxes');
+  if(C.tax.verify)w(!!o.tax.confirmed,'Transfer tax rates confirmed',o.tax.confirmed?'Confirmed on this file':'Some rates depend on local rules or recent law changes. Confirm them on Transfer & excise taxes');
   w(!!C.names('Buyer'),'Buyer named on Contacts','Feeds HUD box D, signature lines and receipts');
   w(!!C.names('Seller'),'Seller named on Contacts','Feeds HUD box E and the seller proceeds check');
   w(!!o.settlementDate,'Settlement date entered','Drives prorations, per-diem interest and box I');
@@ -770,7 +917,9 @@ function itemRow(it,i){
   if(it.calc==='interest')desc+=`<div class="mini">${out(C=>{const x=C.interest;return x.days?`${dstr(x.from)} to ${dstr(x.to)}, ${x.days} days @ ${money(x.perDiem)}/day`:'Needs loan amount, rate and disbursement date'})}</div>`;
   const cell=(k)=>auto?out(C=>money(C.it[it.id][k])):inp(`${p}.${k}`,{num:true});
   let opts='';
-  if(it.calc&&it.calc!=='reserve'){opts+=`<span class="tag auto">calc</span> `;
+  if(TAX_CALCS[it.calc]){opts+=`<span class="tag auto">state rules</span> `;if(!it.override)opts+=`<button class="b small" data-act="tab" data-tab="taxes">Worksheet</button>`;
+    opts+=`<label class="check" style="font-size:12px"><input id="${fid(p+'.override')}" type="checkbox" data-bind="${p}.override" data-re="1"${it.override?' checked':''}> Override</label>`}
+  else if(it.calc&&it.calc!=='reserve'){opts+=`<span class="tag auto">calc</span> `;
     if(!it.override)opts+=sel(`${p}.party`,[['B','Borrower'],['S','Seller'],['split','Split 50/50']],{re:true});
     opts+=`<label class="check" style="font-size:12px"><input id="${fid(p+'.override')}" type="checkbox" data-bind="${p}.override" data-re="1"${it.override?' checked':''}> Override</label>`}
   if(it.calc==='reserve')opts+='<span class="tag auto">months × rate</span> ';
@@ -882,17 +1031,94 @@ function checkView(o,C){
   </div></div></section>`;
 }
 
+PANELS.taxes=()=>{const o=O();const t=o.tax;const st=taxState(o);const rule=TAX_RULES[st];const locs=rule&&rule.loc?Object.entries(rule.loc):[];
+return `<h1>Transfer & excise taxes</h1><p class="lede">State and local transfer, excise, documentary stamp, mortgage and intangible taxes, calculated from each state’s rules and posted to HUD-1 lines 1203–1206. Change the state, locality or property type and every line, the HUD-1 and the ledger update.</p>
+<div class="stack">
+<section class="panel"><div class="grid">
+ ${fld('State',sel('tax.state',[['',`From property address${o.property.state?` (${String(o.property.state).toUpperCase()})`:''}`],...Object.entries(TAX_RULES).sort((a,b)=>a[1].name.localeCompare(b[1].name)).map(([k,v])=>[k,v.name])],{re:true}))}
+ ${locs.length?fld('Locality',sel('tax.locality',[['','Rest of state'],...locs.map(([k,v])=>[k,v.label])],{re:true})):`<div class="f"><span>Locality</span><span class="note" style="padding-top:6px">${rule?'No special localities are built in for this state. Use local add-ons below.':'Choose a state first.'}</span></div>`}
+ ${fld('Property type',sel('tax.ptype',[['sfr','Single-family home'],['res','Condo, townhome or 2–4 family'],['other','Commercial, land or 5+ units']],{re:true}))}
+ <div class="f" style="justify-content:flex-end">${chk('tax.primary','Buyer will occupy as a primary residence')}</div></div>
+ ${rule?`<p class="note" style="margin:0"><b>${esc(rule.name)}.</b> ${esc(rule.note||'')}</p>`:'<div class="msg bad">Choose the state, or enter it in the property address on the Order screen.</div>'}
+</section>
+<section class="panel"><div class="panel-head"><h2>Tax worksheet</h2>${out(C=>`<span class="code">${money(C.tax.total)} total</span>`)}</div>
+ ${out(C=>{const X=C.tax;if(!X.comps.length)return `<p class="empty">${X.rule?(X.rule.comps.length?'No transfer taxes apply with these settings.':esc(X.rule.note||'No transfer tax in this state.')):'No state selected.'}</p>`;
+   return `<div class="scroll"><table class="t"><thead><tr><th>Tax</th><th>Applied to</th><th class="m">Base</th><th>Formula</th><th class="m">Amount</th><th>Paid by</th><th class="m">Borrower</th><th class="m">Seller</th><th>HUD line</th><th></th></tr></thead><tbody>
+   ${X.comps.map(c=>`<tr><td class="w-desc">${esc(c.label)}</td><td>${{price:'Sales price',net:'Price less assumed loans',loan:'Loan amount'}[c.base]}</td><td class="m">${money(c.baseAmt)}</td><td class="note">${esc(fDesc(c.f))}</td><td class="m"><b>${money(c.amount)}</b></td>
+    <td>${c.local?esc({B:'Buyer',S:'Seller',split:'Split'}[c.payerNow]||''):`<select style="min-width:150px" data-change="taxPayer" data-id="${esc(c.id)}" aria-label="Who pays ${esc(c.label)}">${[['B','Buyer'],['S','Seller'],['split','Split 50/50']].map(([v,l])=>`<option value="${v}"${c.payerNow===v?' selected':''}>${l}${v===c.payer?' (customary)':''}</option>`).join('')}</select>`}</td>
+    <td class="m">${money(c.b)}</td><td class="m">${money(c.s)}</td><td><span class="tag">${TAX_SLOTS[c.slot][0]}${TAX_SLOTS[c.slot][1]?' '+TAX_SLOTS[c.slot][1]:''}</span></td>
+    <td>${c.v?'<span class="pill warn">Confirm locally</span>':c.local?'<span class="pill neutral">Your entry</span>':'<span class="pill ok">State rule</span>'}</td></tr>`).join('')}
+   </tbody></table></div>`},'div')}
+ ${out(C=>{const S=C.tax.slots;return `<dl class="kv" style="max-width:520px">${Object.entries(TAX_SLOTS).map(([k,[ln,sub]])=>`<dt>Line ${ln}${sub?' '+sub:''}</dt><dd>${money(S[k].b+S[k].s)}</dd>`).join('')}<dt class="total">Line 1203 transfer taxes (borrower)</dt><dd class="total">${money(C.roll['1203']||0)}</dd></dl>`},'div')}
+ ${out(()=>{const ov=O().items.filter(i=>TAX_CALCS[i.calc]&&i.override);return ov.length?`<div class="msg bad">Line${ov.length>1?'s':''} ${ov.map(i=>i.line+(i.sub?' '+i.sub:'')).join(', ')} ${ov.length>1?'have':'has'} a manual override on Settlement charges, so the worksheet does not control ${ov.length>1?'them':'it'}. Clear the override there to use these figures.</div>`:''},'div')}
+</section>
+<section class="panel"><div class="panel-head"><h2>Local add-ons</h2><span class="code">County, city or school-district taxes not built in</span></div>
+ ${t.addOns.length?`<div class="scroll"><table class="t"><thead><tr><th>Description</th><th>Applied to</th><th class="m">Rate %</th><th class="m">Flat amount</th><th>Paid by</th><th></th></tr></thead><tbody>
+ ${t.addOns.map((a,i)=>`<tr><td class="w-desc">${inp(`tax.addOns.${i}.label`,{ph:'e.g. County recordation tax'})}</td><td>${sel(`tax.addOns.${i}.base`,[['price','Sales price'],['loan','Loan amount']])}</td>
+  <td class="w-amt">${inp(`tax.addOns.${i}.pct`,{num:true,dec:3})}</td><td class="w-amt">${inp(`tax.addOns.${i}.flat`,{num:true})}</td><td>${sel(`tax.addOns.${i}.payer`,[['S','Seller'],['B','Buyer'],['split','Split 50/50']])}</td>
+  <td><button class="x" data-act="delRow" data-list="tax.addOns" data-i="${i}" aria-label="Remove local tax">×</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">None. Add one for any county, municipal or school-district tax your locality charges.</p>'}
+ <div class="row-actions"><button class="b" data-act="addTaxAddOn">Add local tax</button></div></section>
+<section class="panel"><div class="panel-head"><h2>Confirmation</h2></div>
+ ${out(C=>C.tax.verify?`<div class="msg ${o.tax.confirmed?'ok':'bad'}">${o.tax.confirmed?'Rates confirmed for this file. Changing the state, locality or property type clears this.':'One or more rates on this file depend on local rules or recent law changes. Confirm them with the county recorder, the state revenue department or your underwriter’s rate manual, then check the box.'}</div>`:'<div class="msg ok">Every tax on this file comes from a statewide rule.</div>','div')}
+ <div>${chk('tax.confirmed','I confirmed these tax rates for this county and transaction')}</div>
+ <p class="note">${TAX_AS_OF} Exemptions (first-time buyers, family transfers, government parties, refinances) are not applied automatically. If one applies, change who pays or enter a negative local add-on, and the change is written to the audit log.</p></section>
+</div>`};
+
+/* ---------- HUD-1 click-to-enter: each amount writes back to the field that owns it ---------- */
+const TAB_NAME=Object.fromEntries(TABS.map(([k,l])=>[k,l]));
+const edA=(path,cur,title,ovr)=>` data-edit="${path}" data-cur="${num(cur)}"${ovr!=null?` data-ovr="${ovr}"`:''} tabindex="0" role="button" title="${esc(title)}"`;
+const goA=(tab,focus,title)=>` data-goto="${tab}"${focus?` data-focus="${focus}"`:''} tabindex="0" role="button" title="${esc(title)}"`;
+function p1Attr(o,C,n){
+  const F={101:'salesPrice',401:'salesPrice',102:'personalProperty',402:'personalProperty',201:'earnestMoney',202:'loanAmount',203:'existingLoan',503:'existingLoan'};
+  if(F[n])return edA(F[n],getPath(o,F[n]),'Click to enter · saves to Order & property');
+  for(const [id,ln] of Object.entries(C.payLines))if(ln===n){const i=o.payoffs.findIndex(p=>p.id===id);return edA(`payoffs.${i}.amount`,o.payoffs[i].amount,'Click to enter · saves to Payoffs & credits')}
+  if((n===504||n===505)&&!C.L[n]&&o.payoffs[n-504])return edA(`payoffs.${n-504}.amount`,o.payoffs[n-504].amount,'Click to enter the payoff · saves to Payoffs & credits');
+  for(const [id,lns] of Object.entries(C.adjLines))if(lns.includes(n)){const i=o.adjustments.findIndex(a=>a.id===id);return edA(`adjustments.${i}.amount`,o.adjustments[i].amount,'Click to enter · saves to Payoffs & credits')}
+  for(let i=0;i<o.prorations.length;i++){const r=C.pr[o.prorations[i].id];if(r&&r.lines&&r.lines.includes(n))return goA('prorations',`f-prorations-${i}-annual`,'Calculated proration · click to edit it')}
+  if(n===103||n===502)return goA('charges','','Total of line 1400 · click to open Settlement charges');
+  if(n===501)return goA('order','f-earnestHolder','Excess deposit · click to edit the deposit');
+  if([120,220,301,302,303,420,520,601,602,603].includes(n))return ' title="Calculated total"';
+  if(!C.L[n]&&[1,2,4,5].includes(Math.floor(n/100)))return ` data-new="${Math.floor(n/100)}" tabindex="0" role="button" title="Click to add an entry on this side of the statement"`;
+  return ''}
+function itAttr(o,C,it,col){const i=o.items.indexOf(it);
+  if(TAX_CALCS[it.calc]&&!it.override)return goA('taxes','','Calculated from the state tax rules · click to review');
+  if(it.calc==='reserve')return goA('charges',`f-items-${i}-months`,'Months × monthly amount · click to edit');
+  if(col==='s'&&it.bOnly)return '';
+  return edA(`items.${i}.${col}`,C.it[it.id][col],`Click to enter · saves to Settlement charges line ${it.line}${it.calc&&!it.override?' (switches this line to a manual amount)':''}`,it.calc&&!it.override?i:null)}
+function hudGoto(tab,focus){UI.tab=tab;try{history.replaceState(null,'','#'+tab)}catch(e){}render();const el=focus&&document.getElementById(focus);
+  if(el){el.scrollIntoView({block:'center'});el.focus()}else window.scrollTo(0,0)}
+function hudNew(series){const o=O();const type={1:'buyerToSeller',2:'sellerCredit',4:'buyerToSeller',5:'sellerDebit'}[series];
+  o.adjustments.push({id:uid(),type,desc:'',payeeId:'',amount:0});logA(o,`Started a ${ADJ_TYPES[type].label.toLowerCase()} from the HUD-1`,'edit');save();
+  hudGoto('payoffs',`f-adjustments-${o.adjustments.length-1}-desc`)}
+function hudEdit(cell){if(cell.querySelector('input'))return;const path=cell.dataset.edit,text=cell.dataset.kind==='text';
+  const cur=text?String(getPath(O(),path)||''):fmtIn(cell.dataset.cur);
+  cell.innerHTML=`<input class="hud-in" aria-label="${esc(fieldLabel(path))}" value="${esc(cur)}"${text?'':' inputmode="decimal"'} style="text-align:${text?'left':'right'}">`;
+  const box=cell.querySelector('input');box.focus();box.select();let done=false;
+  const finish=ok=>{if(done)return;done=true;if(ok)hudWrite(cell,box.value);refresh()};
+  box.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();finish(true)}else if(ev.key==='Escape'){ev.preventDefault();finish(false)}});
+  box.addEventListener('blur',()=>finish(true))}
+function hudWrite(cell,raw){const o=O(),path=cell.dataset.edit,text=cell.dataset.kind==='text';const old=getPath(o,path);const nv=text?String(raw).trim():r2(num(raw));
+  if(String(old??'')===String(nv)&&!(cell.dataset.ovr!=null))return;
+  if(cell.dataset.ovr!=null){const it=o.items[+cell.dataset.ovr];const cv=compute(o).it[it.id];it.b=cv.b;it.s=cv.s;it.override=true;logA(o,`Line ${it.line} switched to a manual amount from the HUD-1`,'edit')}
+  if(String(old??'')===String(nv)){save();return}
+  setPath(o,path,nv);logA(o,`HUD-1 entry · ${fieldLabel(path)}: ${valDisp(path,String(old??''),!text)} → ${valDisp(path,String(nv),!text)}`,/^(payoffs|receipts)\./.test(path)?'money':'edit');save();
+  const tab=/^items\./.test(path)?'charges':/^(payoffs|adjustments)\./.test(path)?'payoffs':'order';
+  UI.hudMsg=`Saved ${fieldLabel(path)} = ${text?nv:money(nv)} to ${TAB_NAME[tab]}. Totals updated.`}
+document.addEventListener('click',e=>{const c=e.target.closest('.hudwrap [data-edit],.hudwrap [data-goto],.hudwrap [data-new]');if(!c||e.target.closest('input'))return;e.preventDefault();
+  if(c.dataset.edit)hudEdit(c);else if(c.dataset.goto)hudGoto(c.dataset.goto,c.dataset.focus);else if(c.dataset.new)hudNew(+c.dataset.new)});
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('.hudwrap [data-edit],.hudwrap [data-goto],.hudwrap [data-new]')){e.preventDefault();e.target.click()}});
+
 /* ---------- HUD-1 ---------- */
 const cb=on=>`<span class="cb">${on?'☒':'☐'}</span>`;
 function hudAmt(C,n,always){const l=C.L[n];if(!l)return always?money(0):'';if(!l.amt&&!always)return '';return money(l.amt)}
 function hudCell(C,n){
-  const l=C.L[n];const ALWAYS=[101,103,120,201,202,220,301,302,303,401,420,502,520,601,602,603];
+  const o=O();const l=C.L[n];const ALWAYS=[101,103,120,201,202,220,301,302,303,401,420,502,520,601,602,603];
   let d=l?l.desc:(DEF[n]||'');if(l&&l.pr)d+=` ${dstr(l.from)} to ${dstr(l.to)}`;else if([106,107,108,210,211,212,406,407,408,510,511,512].includes(n)&&!l)d+=' &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;to';
   if(n===303)d=`Cash ${cb(C.L[303].amt>=0)} From ${cb(C.L[303].amt<0)} To Borrower`;
   if(n===603)d=`Cash ${cb(C.L[603].amt>=0)} To ${cb(C.L[603].amt<0)} From Seller`;
   let a=hudAmt(C,n,ALWAYS.includes(n));if(n===303||n===603)a=money(Math.abs(C.L[n].amt));if((n===302||n===602)&&a)a=`(${a})`;
   const bold=[120,220,303,420,520,603].includes(n);
-  return `<td class="ln">${n}.</td><td${bold?' style="font-weight:700"':''}>${n===303||n===603?d:esc(d).replace(/&amp;nbsp;/g,'&nbsp;')}</td><td class="amt"${bold?' style="font-weight:700"':''}>${a}</td>`;
+  return `<td class="ln">${n}.</td><td${bold?' style="font-weight:700"':''}>${n===303||n===603?d:esc(d).replace(/&amp;nbsp;/g,'&nbsp;')}</td><td class="amt"${bold?' style="font-weight:700"':''}${p1Attr(o,C,n)}>${a}</td>`;
 }
 function hudPage1(o,C){
   const pair=(a,b)=>`<tr>${hudCell(C,a)}${hudCell(C,b)}</tr>`;const head=(a,b)=>`<tr class="sh"><td colspan="3">${a}</td><td colspan="3">${b}</td></tr>`;
@@ -927,26 +1153,29 @@ function hudItemDesc(o,C,it){
   return d;
 }
 function hudPage2(o,C){
-  const R=(n,desc,inner,b,s,cls='')=>`<tr${cls?` class="${cls}"`:''}><td class="ln">${n}</td><td>${desc}</td><td class="inner">${inner}</td><td class="amt">${b}</td><td class="amt">${s}</td></tr>`;
+  const R=(n,desc,inner,b,s,cls='',A={})=>`<tr${cls?` class="${cls}"`:''}><td class="ln">${n}</td><td${A.d||''}>${desc}</td><td class="inner"${A.i||''}>${inner}</td><td class="amt"${A.b||''}>${b}</td><td class="amt"${A.s||''}>${s}</td></tr>`;
+  const IA=it=>{const i=o.items.indexOf(it);return {d:it.custom?` data-edit="items.${i}.desc" data-kind="text" tabindex="0" role="button" title="Click to type a description"`:'',
+    i:it.roll?itAttr(o,C,it,'b'):'',b:it.roll?' title="Rolls into the total line"':itAttr(o,C,it,'b'),s:itAttr(o,C,it,'s')}};
+  const CM=goA('charges','f-commission-rate','Commission · click to edit the rate and splits');
   const m=v=>num(v)?money(v):'';const cm=o.commission;
   let rows=`<tr class="sh"><td colspan="2">700. Total Real Estate Broker Fees &nbsp; ${money(num(o.salesPrice))} × ${num(cm.rate)}% = ${money(C.commTotal)}<br><span style="font-weight:400">Division of commission (line 700) as follows:</span></td><td></td><td class="amt" style="font-size:9px;text-align:center">Paid From Borrower’s Funds at Settlement</td><td class="amt" style="font-size:9px;text-align:center">Paid From Seller’s Funds at Settlement</td></tr>`;
   const sp=C.splits;const sDesc=x=>x?`${money(x.amt)} to ${esc(C.hname(x.contactId))}`:'$ &nbsp;&nbsp;&nbsp; to';
-  rows+=R('701.',sDesc(sp[0]),'','','');rows+=R('702.',sDesc(sp[1])+(sp.length>2?'; '+sp.slice(2).map(sDesc).join('; '):''),'','','');
-  rows+=R('703.','Commission paid at settlement'+(C.retained?` (${money(C.retained)} deposit retained by broker)`:''),'',money(C.commB),money(C.commS));
+  rows+=R('701.',sDesc(sp[0]),'','','','',{d:CM});rows+=R('702.',sDesc(sp[1])+(sp.length>2?'; '+sp.slice(2).map(sDesc).join('; '):''),'','','','',{d:CM});
+  rows+=R('703.','Commission paid at settlement'+(C.retained?` (${money(C.retained)} deposit retained by broker)`:''),'',money(C.commB),money(C.commS),'',{b:CM,s:CM});
   const inSec=(sec)=>o.items.filter(it=>num(it.line)>=sec&&num(it.line)<sec+100);
-  o.items.filter(it=>it.line>='704'&&num(it.line)<800).forEach(it=>{const v=C.it[it.id];rows+=R(it.line+'.',hudItemDesc(o,C,it),'',m(v.b),m(v.s))});
+  o.items.filter(it=>it.line>='704'&&num(it.line)<800).forEach(it=>{const v=C.it[it.id];rows+=R(it.line+'.',hudItemDesc(o,C,it),'',m(v.b),m(v.s),'',IA(it))});
   for(const [sec,title] of SECTIONS.slice(1)){
     rows+=`<tr class="sh"><td colspan="5">${sec}. ${esc(title)}</td></tr>`;
     const entries=[];const seen=new Set();
     for(const it of inSec(sec)){
       if(it.sub){if(seen.has(it.line))continue;seen.add(it.line);
         const subs=o.items.filter(x=>x.line===it.line&&x.sub);const label={1202:'Deed',1204:'City/County tax/stamps',1205:'State tax/stamps'}[it.line];
-        const parts=subs.map(x=>{const v=C.it[x.id];return `${esc(x.desc)} ${money(v.b+v.s)}`}).join(' &nbsp; ');
+        const parts=subs.map(x=>{const v=C.it[x.id];const col=x.sub==='release'?'s':'b';return `${esc(x.desc)} <span class="sub"${itAttr(o,C,x,col)}>${money(v.b+v.s)}</span>`}).join(' &nbsp; ');
         const sS=subs.reduce((a,x)=>a+C.it[x.id].s,0);
         entries.push({n:num(it.line),html:R(it.line+'.',it.line==='1202'?parts:`${label} &nbsp; ${parts}`,'','',m(sS))});continue}
       const v=C.it[it.id];
-      if(!it.desc&&!v.b&&!v.s&&!num(it.poc)){entries.push({n:num(it.line),html:R(it.line+'.','','','','')});continue}
-      entries.push({n:num(it.line),html:R(it.line+'.',hudItemDesc(o,C,it),it.roll?m(v.b):'',it.roll?'':m(v.b),m(v.s))});
+      if(!it.desc&&!v.b&&!v.s&&!num(it.poc)){entries.push({n:num(it.line),html:R(it.line+'.','','','','','',IA(it))});continue}
+      entries.push({n:num(it.line),html:R(it.line+'.',hudItemDesc(o,C,it),it.roll?m(v.b):'',it.roll?'':m(v.b),m(v.s),'',IA(it))});
     }
     Object.keys(ROLLUPS).map(Number).filter(n=>n>=sec&&n<sec+100).forEach(n=>entries.push({n,html:R(n+'.',`${esc(ROLLUPS[n][0])} <span class="gfe">(from GFE ${ROLLUPS[n][1]})</span>`,'',money(C.roll[n]||0),'')}));
     if(sec===1100){const ag=C.first('Settlement Agent'),uw=C.first('Title Underwriter');const prem=r2(o.items.filter(i=>i.calc==='ownerTitle'||i.calc==='lenderTitle').reduce((a,i)=>a+C.it[i.id].b+C.it[i.id].s,0));
@@ -973,7 +1202,7 @@ function hudPage3(o,C){
 }
 const checklist=C=>`<ul class="checks">${C.checks.map(c=>`<li class="${c.ok?'ok':c.sev}"><span class="ic">${c.ok?'✓':c.sev==='error'?'✕':'!'}</span><span>${esc(c.label)}<small>${esc(c.detail)}</small></span></li>`).join('')}</ul>`;
 PANELS.hud=()=>{const o=O();const g=o.hudGenerated;return `
-<h1>HUD-1 statement</h1><p class="lede">Built from the order, contacts, charges and ledger. Nothing on the statement is typed by hand. Change a number on its source screen and generate again.</p>
+<h1>HUD-1 statement</h1><p class="lede">Built from the order, contacts, charges and ledger. Click any amount on the statement to enter it: it saves to the screen that owns it (line 804 goes to Settlement charges, line 101 to Order), and every total, the ledger and the tracker update. Calculated lines open their source screen instead.</p>
 <div class="stack">
 <section class="panel noprint">
  <div class="panel-head"><div class="row-actions">
@@ -1025,11 +1254,9 @@ PANELS.settings=()=>{const o=O();const S=o.settings;return `
   <div class="f" style="justify-content:flex-end">${chk('settings.simultaneous',"Lender's policy issued simultaneously")}</div></div>
  ${out(C=>`<p class="note">On this file: owner's premium ${money(C.ownerPrem)}, lender's premium ${money(C.lenderPrem)}. Reissue credits and endorsements are not modeled; add them as lines 1109+.</p>`)}
 </section>
-<section class="panel"><div class="panel-head"><h2>Recording & transfer taxes</h2><span class="code">Lines 1204–1206</span></div><div class="grid">
- ${fld('State deed stamps per $100',inp('settings.deedRate',{num:true}))}${fld('County deed tax per $100',inp('settings.countyDeedRate',{num:true}))}
- ${fld('State mortgage stamps per $100',inp('settings.mtgRate',{num:true}))}${fld('County mortgage tax per $100',inp('settings.countyMtgRate',{num:true}))}
- ${fld('Intangible tax % of loan',inp('settings.intangiblePct',{num:true,dec:3}))}</div>
- <p class="note">Florida: deed stamps $0.70 per $100 statewide, $0.60 in Miami-Dade plus a $0.45 surtax when the property is not a single-family home. Mortgage stamps $0.35 per $100. Intangible tax 0.2%.</p></section>
+<section class="panel"><div class="panel-head"><h2>Recording & transfer taxes</h2><span class="code">Lines 1203–1206</span></div>
+ <p class="note" style="margin:0">Transfer, excise, stamp, mortgage and intangible taxes are calculated per file from each state’s rules on the Transfer & excise taxes screen.</p>
+ <div class="row-actions"><button class="b" data-act="tab" data-tab="taxes">Open Transfer & excise taxes</button></div></section>
 <section class="panel"><div class="panel-head"><h2>Calculation rules</h2></div><div class="grid">
  ${fld('Per-diem interest basis',sel('settings.interestBasis',[['365','365 days'],['360','360 days']]))}
  <div class="f" style="justify-content:flex-end">${chk('settings.lenderNets','Lender nets its fees from the funding wire')}</div></div></section>
@@ -1341,6 +1568,9 @@ const ACT={
   crmToggle(el){UI.crmOpen=UI.crmOpen===el.dataset.key?'':el.dataset.key;refresh()},
   crmAdd(el){const e=directory().find(x=>x.key===el.dataset.key);if(!e)return;const o=O();const role=[...e.roles][0]||'Other';
     o.contacts.push({id:uid(),role,name:e.name,address:e.address,phone:e.phone,email:e.email,ref:e.ref});logA(o,`Added ${e.name} (${role}) from the contacts directory`,'edit');save();refresh()},
+  taxPayer(el){const o=O();const id=el.dataset.id;const c=compute(o).tax.comps.find(x=>x.id===id);o.tax.payer[id]=el.value;
+    logA(o,`Transfer tax · ${c?c.label:id}: paid by ${({B:'buyer',S:'seller',split:'split'})[el.value]}`,'edit');save();render()},
+  addTaxAddOn(){const o=O();o.tax.addOns.push({label:'',base:'price',pct:0,flat:0,payer:'S'});logA(o,'Added a local transfer tax','edit');save();render()},
   addMilestone(){const o=O();o.milestones.push({key:'c_'+uid(),label:'',status:'open',due:'',requested:'',received:'',note:'',docId:''});logA(o,'Added a custom milestone','edit');save();render()},
   dupOrder(){const src=O();const c=JSON.parse(JSON.stringify(src));c.id=uid();c.fileNo=(c.fileNo||'Untitled')+' copy';c.status='Open';c.receipts=[];c.issued={};
     c.audit=[];c.openedDate=today();c.closedAt='';c.hudVersion=0;c.hudGenerated='';c.milestones=MS_TEMPLATE.map(newMs);c.drive={folderId:'',folderTitle:'',folderUrl:'',docs:[]};logA(c,`File opened as a copy of ${src.fileNo||'an untitled file'}`,'status');DB.orders.push(c);DB.current=c.id;save();render()},
@@ -1352,7 +1582,7 @@ const ACT={
     o.items.forEach(i=>{if(i.payeeId===id)i.payeeId=''});o.payoffs.forEach(p=>{if(p.payeeId===id)p.payeeId=''});o.adjustments.forEach(a=>{if(a.payeeId===id)a.payeeId=''});
     o.commission.splits.forEach(s=>{if(s.contactId===id)s.contactId=''});if(o.earnestHolder===id)o.earnestHolder='agent';save();render()},
   delRow(el){const L=listAt(el.dataset.list);const r=L[+el.dataset.i];L.splice(+el.dataset.i,1);
-    const what={items:'charge line '+(r&&r.line),prorations:'a proration',payoffs:'a payoff'+(r&&num(r.amount)?' of '+money(r.amount):''),adjustments:'a credit/adjustment',receipts:'a receipt'+(r&&num(r.amount)?' of '+money(r.amount):''),'commission.splits':'a commission split','settings.tiers':'a title rate tier',milestones:'milestone '+((r&&r.label)||'')}[el.dataset.list]||'a row';
+    const what={items:'charge line '+(r&&r.line),prorations:'a proration',payoffs:'a payoff'+(r&&num(r.amount)?' of '+money(r.amount):''),adjustments:'a credit/adjustment',receipts:'a receipt'+(r&&num(r.amount)?' of '+money(r.amount):''),'commission.splits':'a commission split','settings.tiers':'a title rate tier',milestones:'milestone '+((r&&r.label)||''),'tax.addOns':'local tax '+((r&&r.label)||'')}[el.dataset.list]||'a row';
     logA(O(),'Removed '+what,el.dataset.list==='receipts'?'money':'edit');save();render()},
   addProration(){O().prorations.push({id:uid(),kind:'other',label:'',annual:0,from:'',to:'',status:'paid',note:''});save();render()},
   addLine(el){const sec=+el.dataset.sec;const o=O();const line=String(nextLine(sec));
@@ -1399,6 +1629,8 @@ document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.tar
   if(id==='drv-q')ACT.driveSearch();else if(id==='drv-fq')ACT.driveFindFolders();
   else if(id==='side-q'){const b=document.querySelector('.side-list .fi');if(b)b.click()}});
 function afterChange(path,nv){const o=O();let m;
+  if(/^tax\.(state|locality|ptype|primary)$/.test(path)){if(path==='tax.state')o.tax.locality='';if(o.tax.confirmed){o.tax.confirmed=false;logA(o,'Transfer tax confirmation cleared after a rule change','edit')}return true}
+  if(path==='property.state'&&!o.tax.state&&o.tax.confirmed){o.tax.confirmed=false;return true}
   if((m=path.match(/^milestones\.(\d+)\.status$/))){const ms=o.milestones[+m[1]];if(nv==='received'&&!ms.received)ms.received=today();if(nv==='requested'&&!ms.requested)ms.requested=today();if(nv!=='received')ms.auto=false;return true}
   if((m=path.match(/^milestones\.(\d+)\.docId$/))){const ms=o.milestones[+m[1]];if(nv&&ms.status!=='received'){ms.status='received';ms.received=ms.received||today()}return true}
   if((m=path.match(/^contacts\.(\d+)\.name$/))){const c=o.contacts[+m[1]];const k=nv.trim().toLowerCase();if(!k)return false;
