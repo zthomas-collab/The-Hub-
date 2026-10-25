@@ -113,6 +113,7 @@ fieldset.lock{border:0;margin:0;padding:0;min-width:0}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px 14px}
 .grid .wide{grid-column:1/-1}
 label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500;min-width:0}
+div.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);font-weight:500;min-width:0}
 label.f .code{font:10.5px var(--mono);color:var(--muted);opacity:.8}
 input,select,textarea{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:6px 8px;min-width:0;width:100%}
 textarea{resize:vertical;min-height:70px}
@@ -257,7 +258,7 @@ tr.hl td{background:var(--accent-soft)}
 const KEY='hub-closing-desk-v1';
 const ROLES=['Buyer','Seller','Lender','Settlement Agent','Title Underwriter','Listing Broker','Selling Broker','Mortgage Payoff Lender','HOA','Tax Collector','Clerk / Recorder','Appraiser','Surveyor','Insurance Agent','Attorney','Other'];
 const LOAN_TYPES=['FHA','RHS','Conv. Unins.','VA','Conv. Ins.'];
-const GLOBAL_TABS=[['dash','Dashboard'],['crm','Contacts directory']];
+const GLOBAL_TABS=[['dash','Dashboard'],['crm','Contacts directory'],['team','Team & notifications']];
 const TABS=[['order','Order & property','File set up'],['contacts','Contacts','File set up'],['tracker','Closing tracker','File set up'],['prorations','Prorations','Escrow'],['taxes','Transfer & excise taxes','Escrow'],['charges','Settlement charges','Escrow'],['payoffs','Payoffs & credits','Escrow'],['ledger','Trust ledger','Escrow'],['hud','HUD-1 statement','Closing'],['deed','Deed','Closing'],['settings','Rates & settings','Closing'],['docs','Documents · Drive','General'],['audit','Audit log','General'],['codes','Field codes & merge','General']];
 const DRIVE='Google Drive';
 
@@ -322,6 +323,7 @@ const msAuto=(o,C,m)=>!!(MS_AUTO[m.key]&&MS_AUTO[m.key](o,C));
 const msDone=(o,C,m)=>m.status==='received'||m.status==='waived'||msAuto(o,C,m);
 let MEMO=new Map();const CC=o=>{let c=MEMO.get(o);if(!c){c=compute(o);MEMO.set(o,c)}return c};
 function flagsOf(o){norm(o);const F=[];if(o.status==='Closed')return F;const C=CC(o),now=dnum(today()),cl=dnum(o.settlementDate);
+  if(!o.assignedTo||!staffBy(o.assignedTo))F.push({sev:'warn',msg:'No paralegal assigned',tab:'order',due:null});
   if(cl==null)F.push({sev:'warn',msg:'No closing date set',tab:'order',due:null});
   else if(cl<now)F.push({sev:'error',msg:`Closing date ${dstr(cl)} has passed and the file is still open`,tab:'hud',due:cl});
   else if(cl-now<=5&&C.errors)F.push({sev:'error',msg:`Closes ${cl===now?'today':'in '+(cl-now)+' day'+(cl-now>1?'s':'')} with ${C.errors} HUD-1 issue${C.errors>1?'s':''}`,tab:'hud',due:cl});
@@ -341,7 +343,7 @@ function autoMatch(o,files){norm(o);let n=0;const own=new Set(driveOf(o).docs.fi
   return n}
 const FIELD_TOP={fileNo:'File number',loanNo:'Loan number',miCase:'MI case number',loanType:'Loan type',settlementDate:'Settlement date',disbursementDate:'Disbursement date',
   placeOfSettlement:'Place of settlement',salesPrice:'Sales price',personalProperty:'Personal property',loanAmount:'Loan amount',interestRate:'Interest rate',existingLoan:'Existing loan',
-  earnestMoney:'Earnest money',earnestHolder:'Deposit holder',openedDate:'Open date'};
+  earnestMoney:'Earnest money',earnestHolder:'Deposit holder',openedDate:'Open date',assignedTo:'Assigned paralegal',attorney:'Closing attorney'};
 const SUBF={b:'borrower amount',s:'seller amount',poc:'P.O.C. amount',pocBy:'P.O.C. paid by',payeeId:'payee',desc:'description',party:'paid by',override:'override',months:'months',monthly:'monthly amount',years:'years',
   amount:'amount',annual:'annual amount',from:'period from',to:'period to',status:'status',kind:'type',label:'label',type:'type',pct:'share %',contactId:'broker',date:'date',method:'method',memo:'memo',
   vestedOwner:'vested owner',priorBook:'prior deed book',priorPage:'prior deed page',priorDate:'prior deed recorded date',priorInstrument:'prior instrument',platBook:'plat book',platPage:'plat page',
@@ -358,7 +360,7 @@ function fieldLabel(path){const o=O(),p=path.split('.');const sub=f=>SUBF[f]||f;
     case 'tax':return p[1]==='addOns'?`Local tax ${sub(p[3])}`:'Transfer tax '+({state:'state',locality:'locality',ptype:'property type',primary:'primary residence',confirmed:'rates confirmed'}[p[1]]||p[1]);case 'settings':return 'Setting '+p.slice(1).join(' ');
     case 'commission':return p[1]==='splits'?`Commission split ${sub(p[3])}`:'Commission '+sub(p[1])}
   return path}
-function valDisp(path,v,isMoney){if(v==='')return '(blank)';const o=O();if(isMoney)return money(num(v));
+function valDisp(path,v,isMoney){if(v==='')return '(blank)';const o=O();if(isMoney)return money(num(v));if(path==='assignedTo'||path==='attorney')return staffName(v)||'(removed member)';
   if(/(payeeId|contactId|earnestHolder)$/.test(path)){if(v==='agent')return 'Settlement agent';const c=o.contacts.find(x=>x.id===v);return c?(c.name||c.role):'(none)'}
   if(/docId$/.test(path)){const d=driveOf(o).docs.find(x=>x.id===v);return d?d.title:'(none)'}
   if(/^\d{4}-\d{2}-\d{2}$/.test(v))return fmtDate(v);return String(v).length>60?String(v).slice(0,57)+'…':String(v)}
@@ -459,13 +461,13 @@ const O=()=>norm(DB.orders.find(x=>x.id===DB.current)||DB.orders[0]);
 /* Shared store: every saved file lives in the artifact database (collection "orders"), cached in this browser. */
 let REMOTE=null,MCP=null,DL=null,SYNC='local',SYNCMSG='';
 const pending=new Map(),seenRemote=new Set();let migrated=false,writeChain=Promise.resolve();
-let CFG={driveRootId:'',driveRootTitle:''};
+let CFG={driveRootId:'',driveRootTitle:'',staff:[],schedule:null,lastSent:{}};
 try{Object.assign(CFG,JSON.parse(localStorage.getItem(KEY+'-cfg')||'{}'))}catch(e){}
 let RECENT=[];try{RECENT=JSON.parse(localStorage.getItem(KEY+'-recent')||'[]')}catch(e){}
 function saveLocal(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}}
 function save(){const o=O();if(o)o.updated=Date.now();saveLocal();if(o)queueRemote(o)}
 function queueRemote(o){if(!REMOTE||!o.updated)return;clearTimeout(pending.get(o.id));pending.set(o.id,setTimeout(()=>pushRemote(o.id),700))}
-function pushRemote(id){pending.delete(id);const o=DB.orders.find(x=>x.id===id);if(!o||!REMOTE)return;const body=JSON.parse(JSON.stringify(o));
+function pushRemote(id){pending.delete(id);const o=DB.orders.find(x=>x.id===id);if(!o||!REMOTE)return;const body=JSON.parse(JSON.stringify(o));try{body.snapshot=snapshotOf(o)}catch(e){}
   writeChain=writeChain.then(()=>REMOTE.collection('orders').doc(id).set(body)).then(()=>{if(SYNC!=='error'){SYNC='synced'}refresh()},syncFail)}
 function removeRemote(id){if(!REMOTE)return;writeChain=writeChain.then(()=>REMOTE.collection('orders').doc(id).delete()).catch(syncFail)}
 function syncFail(e){const c=e&&e.code;SYNC='error';
@@ -485,7 +487,9 @@ function onRemote(snap){
   DB.orders=next;if(!next.find(x=>x.id===DB.current)){DB.current=next[0].id;replaced=true}
   saveLocal();refreshNames();if(replaced&&!isTyping())render();else refresh();
 }
-function saveCfg(){try{localStorage.setItem(KEY+'-cfg',JSON.stringify(CFG))}catch(e){}
+function refreshNamesStaff(){if(!USER)return;const ids=staffAll().map(s=>s.userId).filter(id=>id&&id!==ME&&!(id in NAMES));if(!ids.length)return;
+  USER.profiles(ids).then(ps=>{ids.forEach(id=>{NAMES[id]=(ps&&ps[id]&&ps[id].name)||''});refresh()}).catch(()=>{})}
+function saveCfg(){cfgTimer=null;try{localStorage.setItem(KEY+'-cfg',JSON.stringify(CFG))}catch(e){}
   if(REMOTE)REMOTE.doc('config/app').set({...CFG}).catch(syncFail)}
 function pushRecent(id){RECENT=[id,...RECENT.filter(x=>x!==id)].slice(0,12);try{localStorage.setItem(KEY+'-recent',JSON.stringify(RECENT))}catch(e){}}
 const driveOf=o=>o.drive||(o.drive={folderId:'',folderTitle:'',folderUrl:'',docs:[]});
@@ -839,7 +843,7 @@ function merge(o,C){const map={};FIELDS.forEach(([k,,f])=>map[k]=f(o,C)??'');
   return String(o.mergeTemplate||'').replace(/\{\{\s*([\w.]+)\s*\}\}/g,(m,k)=>k in map?(map[k]||'____'):`[unknown field ${k}]`)}
 
 /* ---------- view helpers ---------- */
-let OUT=[];let UI={dlabel:'',deedMsg:'',tab:'dash',confirmDelete:false,check:null,io:'',q:'',dq:'',dfilter:'open',hudMsg:'',akind:'all',cq:'',crole:'all',crmOpen:''};
+let OUT=[];let UI={digest:'',teamMsg:'',sending:'',delStaff:'',dstaff:'',dlabel:'',deedMsg:'',tab:'dash',confirmDelete:false,check:null,io:'',q:'',dq:'',dfilter:'open',hudMsg:'',akind:'all',cq:'',crole:'all',crmOpen:''};
 let DRV={busy:'',msg:'',err:'',list:null,listFor:'',listAt:0,folders:null,results:null};
 const out=(fn,tag='span',cls='')=>{const i=OUT.push(fn)-1;return `<${tag}${cls?` class="${cls}"`:''} data-out="${i}"></${tag}>`};
 const fid=p=>'f-'+p.replace(/\./g,'-');
@@ -861,6 +865,10 @@ PANELS.order=()=>{const o=O();return `
   <div class="chips">${labelsOf(o).length?labelsOf(o).map(l=>chip(l,`<button class="lx" data-act="delLabel" data-label="${esc(l)}" aria-label="Remove label ${esc(l)}">×</button>`)).join(''):'<span class="empty">No labels yet.</span>'}</div>
   <div class="chips">${allLabels().filter(l=>!labelsOf(o).includes(l)).map(l=>`<button class="b small" data-act="addLabel" data-label="${esc(l)}">+ ${esc(l)}</button>`).join('')}</div>
   <div class="toolbar"><input id="label-new" placeholder="New label, e.g. Seller out of state" maxlength="40" aria-label="New label"><button class="b" data-act="addLabelCustom">Add label</button></div></section>
+ <section class="panel" id="file-team"><div class="panel-head"><h2>File team</h2><span class="code">The assigned paralegal gets this file in their morning email</span></div><div class="grid">
+  ${fld('Assigned paralegal',sel('assignedTo',[['','— Unassigned —'],...staffAll().map(x=>[x.id,`${x.name||'Unnamed'} · ${x.role}`])]),'Order.Paralegal')}
+  ${fld('Closing attorney',sel('attorney',[['','— None —'],...staffAll().map(x=>[x.id,`${x.name||'Unnamed'} · ${x.role}`])]))}
+  ${out(()=>{const x=staffBy(O().assignedTo);return x?`<div class="f"><span>Paralegal contact</span><span style="color:var(--fg)">${esc(x.email||'No email')}${x.phone?' · '+esc(x.phone):''}</span></div>`:`<div class="f"><span>Paralegal contact</span><span>${staffAll().length?'Choose who works this file.':'<button class="b small" data-act="tab" data-tab="team">Add team members</button>'}</span></div>`},'div')}</div></section>
  <section class="panel"><div class="panel-head"><h2>File</h2><span class="code">HUD boxes B, 6, 7, 8</span></div><div class="grid">
   ${fld('File number',inp('fileNo'),'Order.FileNumber')}${fld('Loan number',inp('loanNo'),'Order.LoanNumber')}
   ${fld('Mortgage insurance case no.',inp('miCase'))}${fld('Type of loan',sel('loanType',[['','— Select —'],...LOAN_TYPES.map(t=>[t,t])]),'Order.LoanType')}
@@ -1244,6 +1252,91 @@ const LABEL_ACT={
   dashLabel(el){UI.dlabel=el.value;refresh()},
 };
 
+/* ---------- Team, file assignment and the morning digest ---------- */
+const STAFF_ROLES=['Paralegal','Closing attorney','Closer','Processor','Other'];
+const staffAll=()=>Array.isArray(CFG.staff)?CFG.staff:(CFG.staff=[]);
+const staffBy=id=>staffAll().find(s=>s.id===id);
+const meStaff=()=>ME?staffAll().find(s=>s.userId===ME):null;
+const staffName=id=>{const s=staffBy(id);return s?(s.name||s.email||'Unnamed team member'):''};
+const isoOf=n=>new Date(n*864e5).toISOString().slice(0,10);
+const okEmail=e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e||'').trim());
+/* Saved with every file so a scheduled job can build the email without running this page. */
+function snapshotOf(o){const C=compute(o);return{computedAt:today(),fileNo:o.fileNo||'',address:propAddr(o)||'',closing:o.settlementDate||'',status:o.status,
+  assignedTo:o.assignedTo||'',attorney:o.attorney||'',buyer:C.names('Buyer'),seller:C.names('Seller'),hudIssues:C.errors,fileBalance:C.fileBal,labels:labelsOf(o),
+  items:o.milestones.map(m=>{const d=msDue(o,m);return{label:m.label||'Milestone',due:d!=null?isoOf(d):'',done:msDone(o,C,m),status:m.status}})}}
+function digestFor(staffId,asOf){const now=dnum(asOf||today());const files=FILES().filter(o=>o.status!=='Closed'&&o.assignedTo===staffId);const rows=[];
+  const cnt={over:0,today:0,soon:0,close:0};
+  for(const o of files){const C=CC(o),cl=dnum(o.settlementDate),items=[];
+    if(cl!=null&&cl<now)items.push({k:'over',t:`Closing date ${dstr(cl)} has passed and the file is still open`});
+    else if(cl!=null&&cl-now<=7)items.push({k:'close',t:`Closing ${cl===now?'TODAY':'on '+dstr(cl)}${C.errors&&cl-now<=5?` — HUD-1 has ${C.errors} issue${C.errors>1?'s':''}`:''}`});
+    for(const m of o.milestones){if(msDone(o,C,m))continue;const d=msDue(o,m);if(d==null)continue;
+      if(d<now)items.push({k:'over',t:`${m.label}: ${now-d} day${now-d>1?'s':''} overdue (due ${dstr(d)})`});
+      else if(d===now)items.push({k:'today',t:`${m.label}: due today`});
+      else if(d-now<=3)items.push({k:'soon',t:`${m.label}: due ${dstr(d)}`})}
+    if(cl==null)items.push({k:'soon',t:'No closing date set'});
+    items.forEach(i=>cnt[i.k]++);if(items.length)rows.push({o,items,cl})}
+  rows.sort((a,b)=>(a.cl??9e9)-(b.cl??9e9));const s=staffBy(staffId)||{};const date=dstr(now);
+  const subject=rows.length?`The Closing Desk · ${date} · ${rows.length} file${rows.length>1?'s':''} need${rows.length>1?'':'s'} attention`:`The Closing Desk · ${date} · nothing due today`;
+  const tag={over:'OVERDUE',today:'TODAY',soon:'SOON',close:'CLOSING'};
+  const text=[`Good morning${s.name?' '+s.name.split(' ')[0]:''},`,'',rows.length?`Here is what your ${files.length} open file${files.length>1?'s need':' needs'} today: ${cnt.over} overdue, ${cnt.today} due today, ${cnt.soon} due in the next 3 days, ${cnt.close} closing within a week.`:`None of your ${files.length} open file${files.length===1?'':'s'} has anything overdue or due in the next 3 days.`,'',
+    ...rows.flatMap(r=>[`${r.o.fileNo||'Untitled'} · ${propAddr(r.o)||'No address'} · closing ${r.cl!=null?dstr(r.cl):'not set'}`,...r.items.map(i=>`  - [${tag[i.k]}] ${i.t}`),'']),
+    'Open The Closing Desk: https://claude.ai/artifact/RNnmNCDqtGV3P3tLJLEeey'].join('\n');
+  const col={over:'#b3261e',today:'#8f5d00',soon:'#1c4d8c',close:'#17734a'};
+  const html=`<div style="font:14px/1.5 Arial,Helvetica,sans-serif;color:#16202c;max-width:640px"><p>Good morning${s.name?' '+esc(s.name.split(' ')[0]):''},</p>
+   <p>${rows.length?`Your ${files.length} open file${files.length>1?'s':''}: <b>${cnt.over} overdue</b>, ${cnt.today} due today, ${cnt.soon} due in the next 3 days, ${cnt.close} closing within a week.`:`Nothing on your ${files.length} open file${files.length===1?'':'s'} is overdue or due in the next 3 days.`}</p>
+   ${rows.map(r=>`<table style="border-collapse:collapse;width:100%;margin:0 0 14px;border:1px solid #d3d9e1"><tr><td style="background:#e6f0fb;padding:8px 10px"><b>${esc(r.o.fileNo||'Untitled')}</b> · ${esc(propAddr(r.o)||'No address')}<br><span style="color:#5a6676">Closing ${r.cl!=null?dstr(r.cl):'not set'} · Buyer ${esc(CC(r.o).names('Buyer')||'—')} · Seller ${esc(CC(r.o).names('Seller')||'—')}</span></td></tr>
+     ${r.items.map(i=>`<tr><td style="padding:6px 10px;border-top:1px solid #eef1f5"><b style="color:${col[i.k]}">${tag[i.k]}</b> &nbsp;${esc(i.t)}</td></tr>`).join('')}</table>`).join('')}
+   <p><a href="https://claude.ai/artifact/RNnmNCDqtGV3P3tLJLEeey">Open The Closing Desk</a></p></div>`;
+  return{subject,text,html,rows,files:files.length,cnt,to:s.email||''}}
+let cfgTimer=null;const saveCfgSoon=()=>{clearTimeout(cfgTimer);cfgTimer=setTimeout(saveCfg,700)};
+function mcpMsg(e,server){const c=e&&e.code;return({needs_reauth:`Reconnect ${server} in claude.ai Settings → Connectors, then try again.`,server_not_connected:`Add the ${server} connector in claude.ai Settings → Connectors, then try again.`,
+  selection_required:`You have more than one ${server} connector. Choose one when claude.ai asks, then try again.`,not_in_manifest:`${server} is turned off for this page. Turn it on from the artifact’s Permissions menu.`,
+  approval_required:`${server} needs your approval. Click again and choose Allow.`,blocked_by_policy:`Your organization blocks this ${server} action.`,no_mcp:`${server} works when this page is open in claude.ai with your ${server} connector.`,
+  tool_error:`${server} reported a problem${e&&e.message?': '+String(e.message).slice(0,200):'.'}`})[c]||(['server_unavailable','upstream_error','cancelled'].includes(c)?`${server} did not confirm the send. Check your Sent folder before trying again.`:`${server} could not complete that request.`)}
+const TEAM_ACT={
+  addStaff(){staffAll().push({id:'st_'+uid(),name:'',role:'Paralegal',email:'',phone:'',userId:'',digest:true});saveCfg();render()},
+  askDelStaff(el){UI.delStaff=el.dataset.id;render()},cancelDelStaff(){UI.delStaff='';render()},
+  delStaff(el){const id=el.dataset.id;CFG.staff=staffAll().filter(s=>s.id!==id);FILES().forEach(o=>{let ch=false;if(o.assignedTo===id){o.assignedTo='';ch=true}if(o.attorney===id){o.attorney='';ch=true}
+    if(ch){logA(o,'Team member removed; assignment cleared','status');o.updated=Date.now();queueRemote(o)}});UI.delStaff='';saveCfg();saveLocal();render()},
+  linkMe(el){if(!ME)return;staffAll().forEach(s=>{if(s.userId===ME)s.userId=''});const s=staffBy(el.dataset.id);if(s)s.userId=ME;saveCfg();render()},
+  unlinkStaff(el){const s=staffBy(el.dataset.id);if(s)s.userId='';saveCfg();render()},
+  previewDigest(el){UI.digest=UI.digest===el.dataset.id?'':el.dataset.id;refresh();const t=document.getElementById('digest-preview');if(t&&UI.digest)t.scrollIntoView({block:'start'})},
+  async sendDigest(el){const s=staffBy(el.dataset.id);if(!s)return;if(!okEmail(s.email)){UI.teamMsg=`Add a valid email for ${s.name||'this team member'} first.`;refresh();return}
+    const d=digestFor(s.id);UI.teamMsg=`Sending to ${s.email}…`;UI.sending=s.id;refresh();
+    try{if(!MCP)throw{code:'no_mcp'};await MCP.callTool('Gmail','send_message',{to:[s.email.trim()],subject:d.subject,body:d.text,htmlBody:d.html});
+      UI.teamMsg=`Sent “${d.subject}” to ${s.email}.`;CFG.lastSent=CFG.lastSent||{};CFG.lastSent[s.id]=Date.now();saveCfg()}
+    catch(e){UI.teamMsg=mcpMsg(e,'Gmail')}UI.sending='';refresh()},
+  dashStaff(el){UI.dstaff=el.value;refresh()},
+};
+PANELS.team=()=>{const me=meStaff();const st=staffAll();return `
+<h1>Team & notifications</h1><p class="lede">The people who operate The Closing Desk. Each file gets an assigned paralegal, and every morning each paralegal is emailed what their open files need from the closing tracker: overdue items, items due today and in the next 3 days, and closings within a week.</p>
+<div class="stack">
+${ME&&!me&&st.length?`<div class="msg info">You are signed in to claude.ai. Click “This is me” on your row to link your sign-in, so your dashboard can show the files assigned to you.</div>`:''}
+${!ME?'<div class="msg info">Sign-in linking works when this page is open in claude.ai while signed in.</div>':''}
+<section class="panel"><div class="panel-head"><h2>Team members</h2><button class="b small primary" data-act="addStaff">Add team member</button></div>
+ ${st.length?`<div class="scroll"><table class="t"><thead><tr><th>Name</th><th>Role</th><th>Email (morning digest goes here)</th><th>Phone</th><th>Sign-in</th><th>Digest</th><th class="m">Open files</th><th></th></tr></thead><tbody>
+ ${st.map((s,i)=>{const n=FILES().filter(o=>o.status!=='Closed'&&o.assignedTo===s.id).length;return `<tr>
+  <td class="w-desc"><input id="cfg-staff-${i}-name" data-cfg="staff.${i}.name" value="${esc(s.name)}" placeholder="Full name"></td>
+  <td style="min-width:150px"><select id="cfg-staff-${i}-role" data-cfg="staff.${i}.role">${STAFF_ROLES.map(r=>`<option${s.role===r?' selected':''}>${r}</option>`).join('')}</select></td>
+  <td class="w-desc"><input id="cfg-staff-${i}-email" data-cfg="staff.${i}.email" type="email" value="${esc(s.email)}" placeholder="name@firm.com"></td>
+  <td><input id="cfg-staff-${i}-phone" data-cfg="staff.${i}.phone" value="${esc(s.phone)}" placeholder="Phone"></td>
+  <td>${s.userId?(s.userId===ME?'<span class="pill ok">You</span>':`<span class="pill neutral">${esc(NAMES[s.userId]||'Linked')}</span>`)+` <button class="b small" data-act="unlinkStaff" data-id="${s.id}">Unlink</button>`:ME?`<button class="b small" data-act="linkMe" data-id="${s.id}">This is me</button>`:'<span class="note">Not linked</span>'}</td>
+  <td><label class="check"><input id="cfg-staff-${i}-digest" type="checkbox" data-cfg="staff.${i}.digest"${s.digest!==false?' checked':''}> Email</label></td>
+  <td class="m">${n}</td>
+  <td><div class="row-actions" style="flex-wrap:nowrap"><button class="b small" data-act="previewDigest" data-id="${s.id}">Preview</button>
+   <button class="b small" data-act="sendDigest" data-id="${s.id}"${MCP&&!UI.sending?'':' disabled'}>${UI.sending===s.id?'Sending…':'Send now'}</button>
+   ${UI.delStaff===s.id?`<button class="b small danger" data-act="delStaff" data-id="${s.id}">Remove</button><button class="b small" data-act="cancelDelStaff">Keep</button>`:`<button class="x" data-act="askDelStaff" data-id="${s.id}" aria-label="Remove team member">×</button>`}</div></td></tr>`}).join('')}
+ </tbody></table></div>`:'<p class="empty">No team members yet. Add each paralegal and attorney who works files, with the email their morning digest should go to.</p>'}
+ ${out(()=>UI.teamMsg?`<div class="msg ${/^Sent/.test(UI.teamMsg)?'ok':/^Sending/.test(UI.teamMsg)?'info':'bad'}">${esc(UI.teamMsg)}</div>`:'','div')}
+ <p class="note">“Send now” sends from your own Gmail through your claude.ai Gmail connector. Team changes are shared with everyone who uses this desk.</p></section>
+<section class="panel"><div class="panel-head"><h2>Morning email schedule</h2></div>
+ ${out(()=>{const sc=CFG.schedule;return sc&&sc.active?`<div class="msg ok">Morning digests go out ${esc(sc.label||'every morning')} from ${esc(sc.sender||'the desk owner’s Gmail')}. Each person with “Email” ticked receives only their own files.</div>`:'<div class="msg info">The automatic morning send is not switched on yet. Use Preview and Send now to check the email; the daily send is set up as a scheduled task in Claude.</div>'},'div')}
+ <p class="note">The schedule reads each file’s saved tracker snapshot, so a file’s latest changes are included once it has been saved. Files with no paralegal assigned are flagged on the dashboard.</p></section>
+<section class="panel" id="digest-preview"><div class="panel-head"><h2>Digest preview</h2>${out(()=>UI.digest?`<span class="note">${esc(staffName(UI.digest))} · ${esc(staffBy(UI.digest)?.email||'no email')}</span>`:'')}</div>
+ ${out(()=>{if(!UI.digest)return '<p class="empty">Click Preview on a team member to see this morning’s email.</p>';const d=digestFor(UI.digest);
+   return `<p style="margin:0"><b>Subject:</b> ${esc(d.subject)}</p><div class="deedpaper" style="padding:16px">${d.html}</div>`},'div')}
+</section></div>`};
+
 /* ---------- HUD-1 click-to-enter: each amount writes back to the field that owns it ---------- */
 const TAB_NAME=Object.fromEntries(TABS.map(([k,l])=>[k,l]));
 const edA=(path,cur,title,ovr)=>` data-edit="${path}" data-cur="${num(cur)}"${ovr!=null?` data-ovr="${ovr}"`:''} tabindex="0" role="button" title="${esc(title)}"`;
@@ -1448,7 +1541,7 @@ PANELS.settings=()=>{const o=O();const S=o.settings;return `
 </div>`};
 
 /* ---------- dashboard ---------- */
-function hay(o){return [o.fileNo,propAddr(o),o.property.county,o.property.parcel,o.loanNo,o.property.vestedOwner,...labelsOf(o),...o.contacts.map(c=>c.name)].join(' ').toLowerCase()}
+function hay(o){return [staffName(o.assignedTo),o.fileNo,propAddr(o),o.property.county,o.property.parcel,o.loanNo,o.property.vestedOwner,...labelsOf(o),...o.contacts.map(c=>c.name)].join(' ').toLowerCase()}
 const matchQ=(o,q)=>String(q||'').toLowerCase().split(/\s+/).filter(Boolean).every(t=>hay(o).includes(t));
 function sideList(){
   const rank=id=>{const i=RECENT.indexOf(id);return i<0?99:i};
@@ -1470,14 +1563,14 @@ function fileBand(){return out(C=>{const o=O();const city=[o.property.city,[o.pr
   return `<div class="band"><div class="band-tab">${esc(o.fileNo||'Untitled file')}</div>${labelsOf(o).length?`<span class="chips" style="display:inline-flex;margin-left:12px;vertical-align:middle">${labelsOf(o).map(l=>chip(l)).join('')}</span>`:''}<div class="band-grid">
   <div><span>Property</span>${esc(o.property.street||'—')}${city?'<br>'+esc(city):''}</div>
   <div><span>Buyer</span>${esc(C.names('Buyer')||'—')}</div><div><span>Seller</span>${esc(C.names('Seller')||'—')}</div>
-  <div><span>Closing date</span>${esc(fmtDate(o.settlementDate)||'—')}</div><div><span>Loan type</span>${esc(o.loanType||'—')}</div>
+  <div><span>Closing date</span>${esc(fmtDate(o.settlementDate)||'—')}</div><div><span>Paralegal</span>${esc(staffName(o.assignedTo)||'Unassigned')}</div>
   <div><span>Cash from borrower</span><span class="money" style="all:unset;font-family:var(--mono)">${money(Math.max(0,C.L[303].amt))}</span></div>
   <div><span>Cash to seller</span><span style="all:unset;font-family:var(--mono)">${money(Math.max(0,C.L[603].amt))}</span></div>
   <button class="band-status ${C.errors?'bad':'ok'}" data-act="tab" data-tab="hud" data-to="hud-checks">${C.errors?`✕ ${C.errors} file issue${C.errors>1?'s':''}`:'✓ No file issues'}</button>
   </div></div>`},'div')}
-const DFILTERS=[['open','Open files'],['week','Closing this week'],['soon30','Closing in 30 days'],['flagged','Need attention'],['closedMonth','Closed this month'],['closed','All closed files'],['all','All files']];
+const DFILTERS=[['mine','My files'],['open','Open files'],['week','Closing this week'],['soon30','Closing in 30 days'],['flagged','Need attention'],['closedMonth','Closed this month'],['closed','All closed files'],['all','All files']];
 function dfilterFn(f){const now=dnum(today());const ym=today().slice(0,7);return o=>{const cl=dnum(o.settlementDate),open=o.status!=='Closed';
-  switch(f){case 'open':return open;case 'week':return open&&cl!=null&&cl>=now&&cl<=now+7;case 'soon30':return open&&cl!=null&&cl>=now&&cl<=now+30;
+  switch(f){case 'mine':{const m=meStaff();return open&&!!m&&o.assignedTo===m.id}case 'open':return open;case 'week':return open&&cl!=null&&cl>=now&&cl<=now+7;case 'soon30':return open&&cl!=null&&cl>=now&&cl<=now+30;
     case 'flagged':return flagsOf(o).some(x=>x.sev==='error');case 'closedMonth':return !open&&String(o.closedAt||'').slice(0,7)===ym;case 'closed':return !open;default:return true}}}
 function notifications(){const items=[];const now=Date.now();
   for(const o of FILES()){for(const f of flagsOf(o))items.push({...f,o});
@@ -1502,21 +1595,23 @@ ${out(()=>{const open=FILES().filter(o=>o.status!=='Closed');
   const wk=open.filter(dfilterFn('week')).length,m30=open.filter(dfilterFn('soon30')).length,flag=FILES().filter(dfilterFn('flagged')).length;
   const due=FILES().reduce((a,o)=>a+flagsOf(o).filter(f=>f.sev==='warn').length,0);const over=FILES().reduce((a,o)=>a+flagsOf(o).filter(f=>f.sev==='error'&&f.tab==='tracker').length,0);
   const cm=FILES().filter(dfilterFn('closedMonth')).length;
-  return `<div class="tiles" id="dash-tiles-inner">${dtile('open','dash-files','Open files',open.length,`${FILES().length} file${FILES().length===1?'':'s'} in total`)}
+  const me=meStaff();const mine=me?FILES().filter(dfilterFn('mine')).length:0;
+  return `<div class="tiles" id="dash-tiles-inner">${me?dtile('mine','dash-files','My files',mine,`Assigned to ${esc((me.name||'you').split(' ')[0])}`):''}${dtile('open','dash-files','Open files',open.length,`${FILES().length} file${FILES().length===1?'':'s'} in total`)}
   ${dtile('week','dash-files','Closing this week',wk,'Next 7 days')}${dtile('soon30','dash-timeline','Closing in 30 days',m30,'See the schedule')}
   ${dtile('flagged','dash-flags','Need attention',flag,`${over} overdue item${over===1?'':'s'}`,flag?'bad':'')}
   ${dtile('flagged','dash-notes','Coming due',due,'Due in the next 3 days',due?'warn':'')}${dtile('closedMonth','dash-files','Closed this month',cm,new Date().toLocaleString('en-US',{month:'long'}))}</div>`},'div','dash-tiles-wrap')}
 <section class="panel" id="dash-files"><div class="panel-head"><h2>Files</h2><button class="b small primary" data-act="newOrder">New file</button></div>
  <div class="toolbar"><input id="dash-q" type="search" placeholder="Search file #, address, party, parcel" aria-label="Search files" value="${esc(UI.dq)}">
   ${out(()=>`<select id="dash-status" data-change="dashStatus" aria-label="Filter files">${DFILTERS.map(([v,l])=>`<option value="${v}"${UI.dfilter===v?' selected':''}>${l}</option>`).join('')}</select>
+   <select id="dash-staff" data-change="dashStaff" aria-label="Filter by paralegal"><option value="">All paralegals</option><option value="none"${UI.dstaff==='none'?' selected':''}>Unassigned</option>${staffAll().map(x=>`<option value="${x.id}"${UI.dstaff===x.id?' selected':''}>${esc(x.name||'Unnamed')}</option>`).join('')}</select>
    <select id="dash-label" data-change="dashLabel" aria-label="Filter by label"><option value="">All labels</option>${allLabels().map(l=>`<option value="${esc(l)}"${UI.dlabel===l?' selected':''}>${esc(l)}</option>`).join('')}</select>`,'span','toolbar')}</div>
- ${out(()=>{const rows=FILES().filter(dfilterFn(UI.dfilter)).filter(o=>matchQ(o,UI.dq)&&(!UI.dlabel||labelsOf(o).includes(UI.dlabel))).sort((a,b)=>(dnum(a.settlementDate)??1e9)-(dnum(b.settlementDate)??1e9));
+ ${out(()=>{const rows=FILES().filter(dfilterFn(UI.dfilter)).filter(o=>matchQ(o,UI.dq)&&(!UI.dlabel||labelsOf(o).includes(UI.dlabel))&&(!UI.dstaff||(UI.dstaff==='none'?!staffBy(o.assignedTo):o.assignedTo===UI.dstaff))).sort((a,b)=>(dnum(a.settlementDate)??1e9)-(dnum(b.settlementDate)??1e9));
   if(!rows.length)return `<p class="empty">${FILES().length?'No files match this filter.':'No files yet. Click New file to open your first order.'}</p>`;
-  return `<div class="scroll"><table class="t"><thead><tr><th>File</th><th>Property</th><th>Buyer / seller</th><th>Closing</th><th>Next item</th><th class="m">Cash from borrower</th><th>Status</th><th>Drive</th><th></th></tr></thead><tbody>
+  return `<div class="scroll"><table class="t"><thead><tr><th>File</th><th>Property</th><th>Buyer / seller</th><th>Closing</th><th>Paralegal</th><th>Next item</th><th class="m">Cash from borrower</th><th>Status</th><th>Drive</th><th></th></tr></thead><tbody>
   ${rows.map(o=>{const C=CC(o),d=driveOf(o),fl=flagsOf(o),err=fl.filter(x=>x.sev==='error').length;
    const nx=o.milestones.map(m=>({m,d:msDue(o,m)})).filter(x=>x.d!=null&&!msDone(o,C,x.m)).sort((a,b)=>a.d-b.d)[0];
    return `<tr><td class="ln"><b>${esc(o.fileNo||'Untitled')}</b>${labelsOf(o).length?`<div class="chips" style="margin-top:3px">${labelsOf(o).map(l=>chip(l)).join('')}</div>`:''}</td><td>${esc(propAddr(o)||'—')}</td>
-   <td>${esc(C.names('Buyer')||'—')}<br><span class="note">${esc(C.names('Seller')||'—')}</span></td><td style="white-space:nowrap">${esc(fmtDate(o.settlementDate)||'—')}</td>
+   <td>${esc(C.names('Buyer')||'—')}<br><span class="note">${esc(C.names('Seller')||'—')}</span></td><td style="white-space:nowrap">${esc(fmtDate(o.settlementDate)||'—')}</td><td>${staffBy(o.assignedTo)?esc(staffName(o.assignedTo)):'<span class="pill warn">Unassigned</span>'}</td>
    <td>${nx?`${esc(nx.m.label)}<br><span class="note">${dstr(nx.d)}</span>`:'<span class="note">Nothing open</span>'}</td>
    <td class="m">${money(Math.max(0,C.L[303].amt))}</td>
    <td>${o.status==='Closed'?'<span class="pill ok">Closed</span>':err?`<span class="pill bad">${err} flag${err>1?'s':''}</span>`:fl.length?`<span class="pill warn">${fl.length} due soon</span>`:'<span class="pill neutral">On track</span>'}</td>
@@ -1797,13 +1892,14 @@ const ACT={
     catch(e){msg('That text is not a closing-desk file. Paste the full text produced by "Copy this file\'s data".')}},
   loadSample(){const o=sampleOrder();logA(o,'File opened (test scenario)','status');DB.orders.push(o);DB.current=o.id;UI.tab='hud';save();render()},
 };
-Object.assign(ACT,DRIVE_ACT,DEED_ACT,LABEL_ACT);
+Object.assign(ACT,DRIVE_ACT,DEED_ACT,LABEL_ACT,TEAM_ACT);
 function msg(t){const m=document.getElementById('io-msg');if(m)m.textContent=t}
 function copyText(t,el){try{navigator.clipboard.writeText(t).catch(()=>selectEl(el))}catch(e){selectEl(el)}}
 function selectEl(el){if(!el)return;if(el.select){el.select();return}const r=document.createRange();r.selectNodeContents(el);const s=getSelection();s.removeAllRanges();s.addRange(r)}
 
 document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(!el||el.disabled)return;const f=ACT[el.dataset.act];if(f){e.preventDefault();f(el)}});
 document.addEventListener('input',e=>{const el=e.target;
+  if(el.dataset&&el.dataset.cfg&&el.tagName!=='SELECT'&&el.type!=='checkbox'){setPath(CFG,el.dataset.cfg,el.value);saveCfgSoon();refresh();return}
   if(el.id==='side-q'){UI.q=el.value;refresh();return}if(el.id==='dash-q'){UI.dq=el.value;refresh();return}if(el.id==='crm-q'){UI.cq=el.value;refresh();return}
   if(!el.dataset||!el.dataset.bind||el.dataset.re||el.tagName==='SELECT')return;apply(el);refresh()});
 document.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const id=e.target&&e.target.id;
@@ -1819,6 +1915,7 @@ function afterChange(path,nv){const o=O();let m;
     ['address','phone','email','ref'].forEach(f=>{if(!c[f]&&src[f]){c[f]=src[f];n++}});if(n){logA(o,`Filled ${c.name}’s details from the contacts directory`,'edit');return true}}
   return false}
 document.addEventListener('change',e=>{const el=e.target;
+  if(el.dataset.cfg){setPath(CFG,el.dataset.cfg,el.type==='checkbox'?el.checked:el.value);if(/\.email$/.test(el.dataset.cfg)&&el.value&&!okEmail(el.value))UI.teamMsg=`“${el.value}” is not a valid email address.`;else if(/\.email$/.test(el.dataset.cfg))UI.teamMsg='';saveCfg();if(el.tagName==='SELECT'||el.type==='checkbox')render();else refresh();return}
   if(el.dataset.bind){const path=el.dataset.bind;const old=el._old!==undefined?el._old:String(getPath(O(),path)??'');apply(el);const nv=String(getPath(O(),path)??'');let re=!!el.dataset.re;
     if(old!==nv){if(afterChange(path,nv))re=true;logA(O(),path==='mergeTemplate'?'Merge template edited':`${fieldLabel(path)}: ${valDisp(path,old,el.dataset.num==='2')} → ${valDisp(path,nv,el.dataset.num==='2')}`,/^(receipts|payoffs)\./.test(path)?'money':'edit');save()}
     el._old=nv;
@@ -1830,7 +1927,9 @@ document.addEventListener('focusin',e=>{const t=e.target;if(t&&t.dataset&&t.data
   const use=n=>{try{return window.claude&&window.claude.use?window.claude.use(n):Promise.resolve(null)}catch(e){return Promise.resolve(null)}};
   use('db').then(db=>{if(!db)return;REMOTE=db;SYNC='connecting';refresh();
     db.collection('orders').onSnapshot(onRemote,syncFail);
-    db.doc('config/app').onSnapshot(sn=>{if(sn.exists){const c=sn.data()||{};CFG.driveRootId=String(c.driveRootId||'');CFG.driveRootTitle=String(c.driveRootTitle||'');refresh()}},()=>{});
+    db.doc('config/app').onSnapshot(sn=>{if(sn.exists){const c=sn.data()||{};CFG.driveRootId=String(c.driveRootId||'');CFG.driveRootTitle=String(c.driveRootTitle||'');
+      if(Array.isArray(c.staff)&&!cfgTimer)CFG.staff=JSON.parse(JSON.stringify(c.staff)).filter(x=>x&&typeof x==='object'&&x.id);CFG.schedule=c.schedule&&typeof c.schedule==='object'?{...c.schedule}:null;CFG.lastSent=c.lastSent||{};
+      try{localStorage.setItem(KEY+'-cfg',JSON.stringify(CFG))}catch(e){}refreshNamesStaff();if(UI.tab==='team'&&!isTyping())render();else refresh()}},()=>{});
   }).catch(()=>{});
   use('mcp').then(m=>{MCP=m;if(MCP&&UI.tab==='docs')render();else refresh()}).catch(()=>{});
   use('downloads').then(d=>{DL=d;refresh()}).catch(()=>{});
