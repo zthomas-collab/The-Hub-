@@ -1327,6 +1327,22 @@ ${out(()=>{const open=FILES().filter(o=>o.status!=='Closed');
   ${dtile('week','dash-files','Closing this week',wk,'Next 7 days')}${dtile('soon30','dash-timeline','Closing in 30 days',m30,'See the schedule')}
   ${dtile('flagged','dash-flags','Need attention',flag,`${over} overdue item${over===1?'':'s'}`,flag?'bad':'')}
   ${dtile('flagged','dash-notes','Coming due',due,'Due in the next 3 days',due?'warn':'')}${dtile('closedMonth','dash-files','Closed this month',cm,new Date().toLocaleString('en-US',{month:'long'}))}</div>`},'div','dash-tiles-wrap')}
+<section class="panel" id="dash-files"><div class="panel-head"><h2>Files</h2><button class="b small primary" data-act="newOrder">New file</button></div>
+ <div class="toolbar"><input id="dash-q" type="search" placeholder="Search file #, address, party, parcel" aria-label="Search files" value="${esc(UI.dq)}">
+  ${out(()=>`<select id="dash-status" data-change="dashStatus" aria-label="Filter files">${DFILTERS.map(([v,l])=>`<option value="${v}"${UI.dfilter===v?' selected':''}>${l}</option>`).join('')}</select>`,'span')}</div>
+ ${out(()=>{const rows=FILES().filter(dfilterFn(UI.dfilter)).filter(o=>matchQ(o,UI.dq)).sort((a,b)=>(dnum(a.settlementDate)??1e9)-(dnum(b.settlementDate)??1e9));
+  if(!rows.length)return `<p class="empty">${FILES().length?'No files match this filter.':'No files yet. Click New file to open your first order.'}</p>`;
+  return `<div class="scroll"><table class="t"><thead><tr><th>File</th><th>Property</th><th>Buyer / seller</th><th>Closing</th><th>Next item</th><th class="m">Cash from borrower</th><th>Status</th><th>Drive</th><th></th></tr></thead><tbody>
+  ${rows.map(o=>{const C=CC(o),d=driveOf(o),fl=flagsOf(o),err=fl.filter(x=>x.sev==='error').length;
+   const nx=o.milestones.map(m=>({m,d:msDue(o,m)})).filter(x=>x.d!=null&&!msDone(o,C,x.m)).sort((a,b)=>a.d-b.d)[0];
+   return `<tr><td class="ln"><b>${esc(o.fileNo||'Untitled')}</b></td><td>${esc(propAddr(o)||'—')}</td>
+   <td>${esc(C.names('Buyer')||'—')}<br><span class="note">${esc(C.names('Seller')||'—')}</span></td><td style="white-space:nowrap">${esc(fmtDate(o.settlementDate)||'—')}</td>
+   <td>${nx?`${esc(nx.m.label)}<br><span class="note">${dstr(nx.d)}</span>`:'<span class="note">Nothing open</span>'}</td>
+   <td class="m">${money(Math.max(0,C.L[303].amt))}</td>
+   <td>${o.status==='Closed'?'<span class="pill ok">Closed</span>':err?`<span class="pill bad">${err} flag${err>1?'s':''}</span>`:fl.length?`<span class="pill warn">${fl.length} due soon</span>`:'<span class="pill neutral">On track</span>'}</td>
+   <td>${d.folderUrl?`<a class="lnk" href="${esc(d.folderUrl)}" target="_blank" rel="noopener">Folder</a> · ${d.docs.length}`:'<span class="note">Not linked</span>'}</td>
+   <td><button class="b small" data-act="openFile" data-id="${o.id}">Open</button></td></tr>`}).join('')}</tbody></table></div>`},'div')}
+</section>
 <section class="panel" id="dash-flags"><div class="panel-head"><h2>Files that need attention</h2>${out(()=>{const n=FILES().filter(dfilterFn('flagged')).length;return n?`<span class="pill bad">${n} flagged</span>`:'<span class="pill ok">All clear</span>'})}</div>
  ${out(()=>{const fl=FILES().map(o=>({o,f:flagsOf(o).filter(x=>x.sev==='error')})).filter(x=>x.f.length).sort((a,b)=>(dnum(a.o.settlementDate)??9e9)-(dnum(b.o.settlementDate)??9e9));
   return fl.length?fl.map(({o,f})=>`<div class="flagfile"><div><b style="font-family:var(--mono)">${esc(o.fileNo||'Untitled')}</b> · ${esc(propAddr(o)||'No address')}<br><span class="note">Closing ${esc(fmtDate(o.settlementDate)||'not set')} · ${esc(CC(o).names('Buyer')||'No buyer')}</span></div>
@@ -1349,22 +1365,6 @@ ${out(()=>{const open=FILES().filter(o=>o.status!=='Closed');
   it.sort((a,b)=>a.d-b.d||(b.cl?1:0)-(a.cl?1:0));
   return it.length?`<div class="feed">${it.slice(0,40).map(x=>`<button class="ni" data-act="openFile" data-id="${x.o.id}" data-tab="${x.tab}"><span class="sv ${x.cl?'info':x.d-now<=3?'warn':'ok'}"></span><span>${x.cl?'<b>Closing</b>':esc(x.label)}<small>${esc(x.o.fileNo||'Untitled')} · ${esc(x.o.property.street||'No address')}</small></span><span class="when">${x.d===now?'Today':esc(dstr(x.d).slice(0,5))}</span></button>`).join('')}</div>`:'<p class="empty">Nothing due in the next two weeks.</p>'},'div')}
 </section></div>
-<section class="panel" id="dash-files"><div class="panel-head"><h2>Files</h2><button class="b small primary" data-act="newOrder">New file</button></div>
- <div class="toolbar"><input id="dash-q" type="search" placeholder="Search file #, address, party, parcel" aria-label="Search files" value="${esc(UI.dq)}">
-  ${out(()=>`<select id="dash-status" data-change="dashStatus" aria-label="Filter files">${DFILTERS.map(([v,l])=>`<option value="${v}"${UI.dfilter===v?' selected':''}>${l}</option>`).join('')}</select>`,'span')}</div>
- ${out(()=>{const rows=FILES().filter(dfilterFn(UI.dfilter)).filter(o=>matchQ(o,UI.dq)).sort((a,b)=>(dnum(a.settlementDate)??1e9)-(dnum(b.settlementDate)??1e9));
-  if(!rows.length)return `<p class="empty">${FILES().length?'No files match this filter.':'No files yet. Click New file to open your first order.'}</p>`;
-  return `<div class="scroll"><table class="t"><thead><tr><th>File</th><th>Property</th><th>Buyer / seller</th><th>Closing</th><th>Next item</th><th class="m">Cash from borrower</th><th>Status</th><th>Drive</th><th></th></tr></thead><tbody>
-  ${rows.map(o=>{const C=CC(o),d=driveOf(o),fl=flagsOf(o),err=fl.filter(x=>x.sev==='error').length;
-   const nx=o.milestones.map(m=>({m,d:msDue(o,m)})).filter(x=>x.d!=null&&!msDone(o,C,x.m)).sort((a,b)=>a.d-b.d)[0];
-   return `<tr><td class="ln"><b>${esc(o.fileNo||'Untitled')}</b></td><td>${esc(propAddr(o)||'—')}</td>
-   <td>${esc(C.names('Buyer')||'—')}<br><span class="note">${esc(C.names('Seller')||'—')}</span></td><td style="white-space:nowrap">${esc(fmtDate(o.settlementDate)||'—')}</td>
-   <td>${nx?`${esc(nx.m.label)}<br><span class="note">${dstr(nx.d)}</span>`:'<span class="note">Nothing open</span>'}</td>
-   <td class="m">${money(Math.max(0,C.L[303].amt))}</td>
-   <td>${o.status==='Closed'?'<span class="pill ok">Closed</span>':err?`<span class="pill bad">${err} flag${err>1?'s':''}</span>`:fl.length?`<span class="pill warn">${fl.length} due soon</span>`:'<span class="pill neutral">On track</span>'}</td>
-   <td>${d.folderUrl?`<a class="lnk" href="${esc(d.folderUrl)}" target="_blank" rel="noopener">Folder</a> · ${d.docs.length}`:'<span class="note">Not linked</span>'}</td>
-   <td><button class="b small" data-act="openFile" data-id="${o.id}">Open</button></td></tr>`}).join('')}</tbody></table></div>`},'div')}
-</section>
 <div class="two">
 <section class="panel"><div class="panel-head"><h2>Recent activity</h2><span class="note">Audit trail across all files</span></div>
  ${out(()=>{const a=FILES().flatMap(o=>(norm(o).audit||[]).slice(0,40).map(x=>({...x,o}))).sort((x,y)=>y.at-x.at).slice(0,15);
