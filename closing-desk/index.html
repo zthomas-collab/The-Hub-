@@ -853,7 +853,7 @@ function contactOpts(blank='— Select payee —'){return [['',blank],...O().con
 const PANELS={};
 PANELS.order=()=>{const o=O();return `
 <h1>Order</h1><p class="lede">Enter each fact once. Every screen, the HUD-1, the ledger and merged documents read from these fields.</p>
-<div class="cols"><div class="stack">
+<div class="stack">
  <section class="panel" id="file-labels"><div class="panel-head"><h2>File labels</h2><span class="code">Shown on the dashboard, the sidebar and the file header</span></div>
   <div class="chips">${labelsOf(o).length?labelsOf(o).map(l=>chip(l,`<button class="lx" data-act="delLabel" data-label="${esc(l)}" aria-label="Remove label ${esc(l)}">×</button>`)).join(''):'<span class="empty">No labels yet.</span>'}</div>
   <div class="chips">${allLabels().filter(l=>!labelsOf(o).includes(l)).map(l=>`<button class="b small" data-act="addLabel" data-label="${esc(l)}">+ ${esc(l)}</button>`).join('')}</div>
@@ -884,15 +884,7 @@ PANELS.order=()=>{const o=O();return `
   ${fld('Existing loan taken subject to',inp('existingLoan',{num:true}))}
  </div></section>
 </div>
-<aside class="panel"><div class="panel-head"><h2>Live summary</h2></div>${out(C=>`<dl class="kv">
-  <dt>Settlement charges, borrower</dt><dd>${money(C.B1400)}</dd><dt>Settlement charges, seller</dt><dd>${money(C.S1400)}</dd>
-  <dt>Gross due from borrower (120)</dt><dd>${money(C.L[120].amt)}</dd><dt>Paid by/for borrower (220)</dt><dd>${money(C.L[220].amt)}</dd>
-  <dt class="total">Cash ${C.L[303].amt>=0?'from':'to'} borrower (303)</dt><dd class="total">${money(Math.abs(C.L[303].amt))}</dd>
-  <dt>Gross due to seller (420)</dt><dd>${money(C.L[420].amt)}</dd><dt>Reductions to seller (520)</dt><dd>${money(C.L[520].amt)}</dd>
-  <dt class="total">Cash ${C.L[603].amt>=0?'to':'from'} seller (603)</dt><dd class="total">${money(Math.abs(C.L[603].amt))}</dd>
-  <dt>Ledger file balance</dt><dd>${money(C.fileBal)}</dd></dl>`)}
-  <p class="note">Deposit held by a broker is netted from that broker's commission check. Any amount above the commission posts to line 501.</p>
-</aside></div>`};
+`};
 
 PANELS.contacts=()=>{const o=O();return `
 <h1>Contacts</h1><p class="lede">Every party on the file. Payee dropdowns on charges, payoffs and the ledger pull from this list, so a name typed here flows to every check and HUD line. Start typing a name that is on another file and pick it to copy that contact’s details from the directory.</p>
@@ -1016,6 +1008,15 @@ ${out(C=>`<div class="tiles">
  <div class="tile"><div class="k">Disbursements</div><div class="v">${money(C.disbTotal)}</div></div>
  <div class="tile ${Math.abs(C.fileBal)<0.005?'ok':'bad'}"><div class="k">File balance</div><div class="v">${money(C.fileBal)}</div></div>
  <div class="tile"><div class="k">Cash in trust (receipts − issued)</div><div class="v">${money(C.trustBal)}</div></div></div>`)}
+<section class="panel"><div class="panel-head"><h2>Live summary</h2><span class="code">Lines 120, 220, 303, 420, 520, 603, 1400</span></div>${out(C=>`<dl class="kv" style="max-width:560px">
+  <dt>Settlement charges, borrower</dt><dd>${money(C.B1400)}</dd><dt>Settlement charges, seller</dt><dd>${money(C.S1400)}</dd>
+  <dt>Gross due from borrower (120)</dt><dd>${money(C.L[120].amt)}</dd><dt>Paid by/for borrower (220)</dt><dd>${money(C.L[220].amt)}</dd>
+  <dt class="total">Cash ${C.L[303].amt>=0?'from':'to'} borrower (303)</dt><dd class="total">${money(Math.abs(C.L[303].amt))}</dd>
+  <dt>Gross due to seller (420)</dt><dd>${money(C.L[420].amt)}</dd><dt>Reductions to seller (520)</dt><dd>${money(C.L[520].amt)}</dd>
+  <dt class="total">Cash ${C.L[603].amt>=0?'to':'from'} seller (603)</dt><dd class="total">${money(Math.abs(C.L[603].amt))}</dd>
+  <dt>Ledger file balance</dt><dd>${money(C.fileBal)}</dd></dl>`)}
+  <p class="note">Deposit held by a broker is netted from that broker's commission check. Any amount above the commission posts to line 501.</p>
+</section>
 <section class="panel"><div class="panel-head"><h2>Expected receipts</h2><span class="code">From lines 201, 202, 303, 603</span></div>
  ${out(C=>C.exp.length?`<div class="scroll"><table class="t"><thead><tr><th>Source</th><th>From</th><th>Basis</th><th class="m">Expected</th><th class="m">Recorded</th><th></th></tr></thead><tbody>
  ${C.exp.map(e=>{const got=r2(o.receipts.filter(r=>r.kind===e.key).reduce((a,r)=>a+num(r.amount),0));const rem=r2(e.amt-got);
