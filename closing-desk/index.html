@@ -256,6 +256,23 @@ tr.hl td{background:var(--accent-soft)}
 .t th.col-s{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--surface))}
 .t td.cb{background:color-mix(in srgb,var(--accent) 5%,transparent)}
 .t td.cs{background:color-mix(in srgb,var(--warn) 6%,transparent)}
+.workgrid{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:18px;align-items:start}
+.workmain{min-width:0}
+.balrail{position:sticky;top:calc(var(--topbar-h,64px) + 14px);max-height:calc(100dvh - var(--topbar-h,64px) - 28px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.balrail > div{display:flex;flex-direction:column;gap:12px}
+.rb-head{border-radius:6px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.rb-head span{font-size:11px;text-transform:uppercase;letter-spacing:.07em;font-weight:600;opacity:.85}
+.rb-head b{font:600 22px var(--mono);font-variant-numeric:tabular-nums} .rb-head small{font-size:12px}
+.rb-head.ok{background:var(--ok-bg);color:var(--ok)} .rb-head.bad{background:var(--bad-bg);color:var(--bad)}
+.rb-sec{border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.rb-t{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.kv.rb{font-size:12.5px;gap:4px 10px}
+.rb-bar{height:6px;border-radius:999px;background:var(--surface-2);overflow:hidden} .rb-bar i{display:block;height:100%;background:var(--ok)}
+.rb-alert{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--bad);background:var(--bad-bg);border-radius:6px;padding:8px 10px}
+.rb-alert:focus-visible{outline:2px solid var(--bad)}
+@media (max-width:1180px){.workgrid{grid-template-columns:minmax(0,1fr)}.balrail{position:static;max-height:none;order:-1}
+  .balrail > div{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 16px}.balrail .rb-sec{border-top:0;padding-top:0}}
+@media print{.balrail{display:none}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
@@ -321,7 +338,7 @@ function norm(o){if(!o)return o;if(!o.openedDate)o.openedDate=o.created||today()
   if(!Array.isArray(o.milestones))o.milestones=MS_TEMPLATE.map(newMs);
   else MS_TEMPLATE.forEach(t=>{if(!o.milestones.some(m=>m.key===t.key))o.milestones.push(newMs(t))});
   if(!Array.isArray(o.audit))o.audit=[];
-  o.deed=Object.assign(deedDefaults(),o.deed||{});
+  if(!o.disbMethod||typeof o.disbMethod!=='object')o.disbMethod={};o.deed=Object.assign(deedDefaults(),o.deed||{});
   if(o.deed.grantorType&&o.deed.grantorType!=='individual'&&!o.deed.migrated){let sc=o.contacts.find(c=>c.role==='Seller');if(!sc){sc={id:uid(),role:'Seller',name:'',address:'',phone:'',email:'',ref:''};o.contacts.push(sc)}
     Object.assign(sc,{name:o.deed.entityName||sc.name,entityType:o.deed.grantorType,entityState:o.deed.entityState||'',signer:o.deed.signer||'',signerTitle:o.deed.signerTitle||''});o.deed.grantorType='individual';o.deed.migrated=true}o.closeout=Object.assign(coDefaults(),o.closeout||{});if(!Array.isArray(o.labels))o.labels=[];
   if(!o.tax||typeof o.tax!=='object')o.tax={state:'',locality:'',ptype:'sfr',primary:true,payer:{},addOns:[],confirmed:false};if(!o.tax.payer)o.tax.payer={};if(!Array.isArray(o.tax.addOns))o.tax.addOns=[];
@@ -790,6 +807,11 @@ function compute(o){
     if(t==='buyerCredit'||t==='sellerCredit3')exp.push({key:'adj:'+a.id,kind:'Third-party credit',from:C.cname(a.payeeId)||'Payer not set',amt:r2(a.amount),ref:`${ln[0]} ${a.desc}`})});
   const buyers=C.names('Buyer')||'Borrower',sellers=C.names('Seller')||'Seller',lender=C.first('Lender');
   if(holder==='agent'&&D>0)exp.push({key:'em',kind:'Earnest money deposit',from:buyers,amt:D,ref:'201'});
+  /* Net funding: the lender keeps these amounts from its wire, so they never pass through the trust account. */
+  C.netList=nettedRefs.length?[{key:'lender-auto',name:(lender?C.cname(lender.id):'Lender')+' (lender’s own fees)',amt:netted,refs:[...nettedRefs],auto:true}]:[];
+  const DMm=o.disbMethod||{};C.netBlocked=[];
+  for(const [k,d] of [...DM]){if(DMm[k]!=='Net'||k==='seller'||k==='buyer'||o.issued[k])continue;
+    if(loan>0){netted=r2(netted+d.amt);nettedRefs.push(...d.refs);C.netList.push({...d,auto:false});DM.delete(k)}else C.netBlocked.push(d.name)}
   const wire=r2(loan-netted);
   if(wire)exp.push({key:'lender',kind:'Lender funding wire',from:lender?C.cname(lender.id):'Lender',amt:wire,ref:netted?`202 less ${money(netted)} lender fees netted`:'202'});
   if(L[303].amt>0)exp.push({key:'buyer',kind:'Cash from borrower',from:buyers,amt:L[303].amt,ref:'303'});
@@ -817,6 +839,10 @@ function compute(o){
   const bad=[];for(const [k,iss] of Object.entries(o.issued)){const d=C.disb.find(x=>x.key===k);
     if(!d)bad.push(`${iss.method} ${iss.no} to ${iss.name} is no longer on the statement. Void it.`);
     else if(r2(d.amt)!==r2(iss.amount))bad.push(`${iss.method} ${iss.no} to ${iss.name} was issued for ${money(iss.amount)}; statement now shows ${money(d.amt)}. Void and reissue.`)}
+  const noM=C.disb.filter(d=>d.key!=='nopayee'&&!o.issued[d.key]&&!['Check','Wire'].includes((o.disbMethod||{})[d.key]));
+  chk(!noM.length,'Every disbursement has check or wire selected',noM.length?`Choose a method for: ${noM.map(d=>d.name).join('; ')}`:'All disbursements have a payment method');
+  if(C.netBlocked.length)chk(false,'Net funding has a lender wire',`No loan amount, so ${C.netBlocked.join('; ')} cannot be net funded. Choose check or wire.`);
+  C.noMethod=noM.length;
   chk(!bad.length,'Issued checks and wires match the statement',bad.join(' ')||(Object.keys(o.issued).length?'No mismatches':'Nothing issued yet'));
   const w=(ok,label,detail)=>chk(ok,label,detail,'warn');
   const tst=taxState(o);w(!(price>0&&!tst),'Transfer tax state selected',tst?`${TAX_RULES[tst].name} rules applied (${money(C.tax.total)})`:'Choose the state on Transfer & excise taxes');
@@ -1063,13 +1089,22 @@ ${out(C=>`<div class="tiles">
   <td><button class="x" data-act="delRow" data-list="receipts" data-i="${i}" aria-label="Remove receipt">×</button></td></tr>`).join('')}
  </tbody></table></div>`:'<p class="empty">No receipts recorded. Use a Receipt button above, or add one by hand.</p>'}
  <div class="row-actions"><button class="b" data-act="addReceipt">Add receipt by hand</button></div></section>
-<section class="panel"><div class="panel-head"><h2>Disbursements</h2><span class="code">One item per payee, built from the statement</span></div>
- ${out(C=>C.disb.length?`<div class="scroll"><table class="t"><thead><tr><th>Payee</th><th>Lines</th><th class="m">Amount</th><th>Status</th><th></th></tr></thead><tbody>
+<section class="panel" id="funding"><div class="panel-head"><h2>Funding</h2>${out(C=>`<span class="pill ${C.netted?'info':'neutral'}" style="${C.netted?'background:var(--accent-soft);color:var(--accent)':''}">${o.settings.lenderNets?'Net funded':'Gross funded'}</span>`)}</div>
+ <div>${chk('settings.lenderNets','Net funded: the lender keeps its own fees from the loan wire')}</div>
+ ${out(C=>`<dl class="kv" style="max-width:560px"><dt>Loan amount (202)</dt><dd>${money(o.loanAmount)}</dd><dt>Less amounts held by the lender (net funded)</dt><dd>${money(-C.netted)}</dd><dt class="total">Expected lender wire</dt><dd class="total">${money(num(o.loanAmount)-C.netted)}</dd></dl>
+  ${C.netList.length?`<div class="scroll"><table class="t"><thead><tr><th>Held by lender (not paid from trust)</th><th>Lines</th><th class="m">Amount</th><th></th></tr></thead><tbody>${C.netList.map(n=>`<tr><td><b>${esc(n.name)}</b></td><td class="note">${esc(n.refs.join('; '))}</td><td class="m">${money(n.amt)}</td>
+   <td>${n.auto?'<span class="note">Lender fees, while net funded is on</span>':`<button class="b small" data-act="disbMethod" data-key="${esc(n.key)}" data-name="${esc(n.name)}" value="">Pay from trust instead</button>`}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty">Nothing is net funded. Every charge is paid from the trust account.</p>'}`,'div')}
+ <p class="note">Net funded amounts reduce the wire you expect from the lender and are shown as held by the lender, not as checks. Mark any other payee net funded from its disbursement row when the lender pays it directly.</p></section>
+<section class="panel"><div class="panel-head"><h2>Disbursements</h2><span class="code">Every payment needs check or wire</span></div>
+ ${out(C=>C.disb.length?`<div class="scroll"><table class="t"><thead><tr><th>Payee</th><th>Lines</th><th class="m">Amount</th><th>Pay by</th><th>Status</th><th></th></tr></thead><tbody>
  ${C.disb.map(d=>{const iss=o.issued[d.key];const mism=iss&&r2(iss.amount)!==d.amt;const ready=Math.abs(C.fileBal)<0.005;
+  const mth=(o.disbMethod||{})[d.key]||'';const canNet=num(o.loanAmount)>0&&d.key!=='seller'&&d.key!=='buyer';
   return `<tr><td><b>${esc(d.name)}</b></td><td class="note">${esc(d.refs.join('; '))}</td><td class="m">${money(d.amt)}</td>
+  <td>${iss?`<span class="tag">${esc(iss.method)}</span>`:d.key==='nopayee'?'':`<select style="min-width:150px${mth?'':';border-color:var(--bad)'}" data-change="disbMethod" data-key="${esc(d.key)}" data-name="${esc(d.name)}" aria-label="Pay ${esc(d.name)} by">
+    <option value="">— Check or wire —</option><option value="Check"${mth==='Check'?' selected':''}>Check</option><option value="Wire"${mth==='Wire'?' selected':''}>Wire</option>${canNet?'<option value="Net">Net funded (lender pays)</option>':''}</select>`}</td>
   <td>${iss?`<span class="pill ${mism?'bad':'ok'}">${esc(iss.method)} ${esc(iss.no)}${mism?' · mismatch':''}</span>`:d.key==='nopayee'?'<span class="pill bad">Needs payee</span>':'<span class="pill neutral">Pending</span>'}</td>
   <td><div class="row-actions">${iss?`<button class="b small" data-act="viewCheck" data-key="${d.key}">View</button><button class="b small danger" data-act="voidD" data-key="${d.key}">Void</button>`:
-   d.key==='nopayee'?'':`<button class="b small" data-act="issue" data-key="${d.key}" data-m="Check"${ready?'':' disabled title="Balance the file first"'}>Print check</button><button class="b small" data-act="issue" data-key="${d.key}" data-m="Wire"${ready?'':' disabled title="Balance the file first"'}>Queue wire</button>`}</div></td></tr>`}).join('')}
+   d.key==='nopayee'||!mth?'':`<button class="b small${ready?' primary':''}" data-act="issue" data-key="${d.key}"${ready?'':' disabled title="Balance the file first"'}>${mth==='Wire'?'Queue wire':'Print check'}</button>`}</div></td></tr>`}).join('')}
  </tbody></table></div>`:'<p class="empty">No disbursements yet. They appear as soon as a charge, payoff or proceeds amount is on the statement.</p>')}
  ${out(C=>Math.abs(C.fileBal)<0.005?'':`<p class="note">Checks and wires unlock when receipts equal disbursements. Current difference: ${money(C.fileBal)}.</p>`)}
 </section>
@@ -1926,6 +1961,22 @@ ${d.folderId?`<section class="panel"><div class="panel-head"><h2>Save to this fi
 </section>
 </div>`};
 
+/* ---------- running balance rail (right side of every file screen) ---------- */
+function balRail(C){const o=O();const issued=C.disb.filter(d=>o.issued[d.key]).length;const bal=Math.abs(C.fileBal)<0.005;const tr=Math.abs(C.trustBal)<0.005;
+  const pct=C.expTotal?Math.min(100,Math.round(C.recTotal/C.expTotal*100)):0;
+  return `<div class="rb-head ${bal?'ok':'bad'}"><span>Running balance</span><b>${money(C.fileBal)}</b><small>${bal?'Balanced: receipts equal disbursements':'Receipts − disbursements must be $0.00'}</small></div>
+  <div class="rb-sec"><div class="rb-t">Receipts</div><div class="rb-bar"><i style="width:${pct}%"></i></div>
+   <dl class="kv rb"><dt>Expected</dt><dd>${money(C.expTotal)}</dd><dt>Received</dt><dd>${money(C.recTotal)}</dd>${C.recTotal!==C.expTotal?`<dt>${C.recTotal<C.expTotal?'Still due':'Over-received'}</dt><dd>${money(Math.abs(C.expTotal-C.recTotal))}</dd>`:''}</dl></div>
+  <div class="rb-sec"><div class="rb-t">Disbursements</div>
+   <dl class="kv rb"><dt>Total from trust</dt><dd>${money(C.disbTotal)}</dd><dt>Issued (${issued} of ${C.disb.length})</dt><dd>${money(C.issuedTotal)}</dd>${C.noMethod?`<dt style="color:var(--bad)">No check/wire chosen</dt><dd style="color:var(--bad)">${C.noMethod}</dd>`:''}</dl></div>
+  <div class="rb-sec"><div class="rb-t">Funding · ${o.settings.lenderNets?'net funded':'gross funded'}</div>
+   <dl class="kv rb"><dt>Loan</dt><dd>${money(o.loanAmount)}</dd><dt>Held by lender</dt><dd>${money(-C.netted)}</dd><dt class="total">Lender wire</dt><dd class="total">${money(num(o.loanAmount)-C.netted)}</dd></dl></div>
+  <div class="rb-sec"><div class="rb-t">Trust account</div><dl class="kv rb"><dt class="total">Held in trust</dt><dd class="total" style="color:var(${tr?'--fg':'--warn'})">${money(C.trustBal)}</dd></dl></div>
+  <div class="rb-sec"><div class="rb-t">Settlement</div><dl class="kv rb"><dt>Cash from borrower</dt><dd>${money(Math.max(0,C.L[303].amt))}</dd><dt>Cash to seller</dt><dd>${money(Math.max(0,C.L[603].amt))}</dd><dt>1400 borrower</dt><dd>${money(C.B1400)}</dd><dt>1400 seller</dt><dd>${money(C.S1400)}</dd></dl></div>
+  ${C.noMethod?`<button class="rb-alert" data-act="tab" data-tab="ledger">${C.noMethod} payment${C.noMethod>1?'s need':' needs'} check or wire →</button>`:''}
+  ${C.errors?`<button class="rb-alert" data-act="tab" data-tab="hud" data-to="hud-checks">${C.errors} balancing issue${C.errors>1?'s':''} →</button>`:''}
+  <button class="b small" data-act="tab" data-tab="ledger" style="width:100%">Open trust ledger</button>`}
+
 /* ---------- shell ---------- */
 function render(){
   OUT=[];const o=O();const tab=PANELS[UI.tab]?UI.tab:'dash';UI.tab=tab;let flow='';const G=GLOBAL_TABS.some(t=>t[0]===tab);
@@ -1947,7 +1998,7 @@ function render(){
     <nav class="rail" aria-label="Modules">${nav}</nav>
     ${out(syncFoot,'div','side-foot')}
    </aside>
-   <main>${G?'':fileBand()}${o.status==='Closed'&&!G?'<div class="banner closed">This file is closed. Post-closing items can still be recorded on Close out file; reopen it there to change anything else.</div>':''}<fieldset class="lock"${locked?' disabled':''}>${PANELS[tab]()}</fieldset></main></div>`;
+   <main>${G?'':fileBand()}${o.status==='Closed'&&!G?'<div class="banner closed">This file is closed. Post-closing items can still be recorded on Close out file; reopen it there to change anything else.</div>':''}${G?`<fieldset class="lock">${PANELS[tab]()}</fieldset>`:`<div class="workgrid"><div class="workmain"><fieldset class="lock"${locked?' disabled':''}>${PANELS[tab]()}</fieldset></div><aside class="balrail" aria-label="Running balance">${out(balRail,'div')}</aside></div>`}</main></div>`;
   refresh();
   try{const h=document.querySelector('header.top');if(h)document.documentElement.style.setProperty('--topbar-h',h.offsetHeight+'px')}catch(e){}
 }
@@ -2002,7 +2053,9 @@ const ACT={
     const got=o.receipts.filter(r=>r.kind===e.key).reduce((a,r)=>a+num(r.amount),0);
     o.receipts.push({id:uid(),date:today(),from:e.from,kind:e.key,method:'Wire',amount:r2(e.amt-got),memo:''});logA(o,`Receipt recorded: ${money(e.amt-got)} ${e.kind} from ${e.from}`,'money');save();render()},
   addReceipt(){O().receipts.push({id:uid(),date:today(),from:'',kind:'other',method:'Wire',amount:0,memo:''});save();render()},
-  issue(el){const o=O(),C=compute(o);const d=C.disb.find(x=>x.key===el.dataset.key);if(!d||Math.abs(C.fileBal)>=0.005)return;const m=el.dataset.m;
+  disbMethod(el){const o=O();o.disbMethod=o.disbMethod||{};const k=el.dataset.key,v=el.tagName==='SELECT'?el.value:'';const before=o.disbMethod[k]||'';if(v)o.disbMethod[k]=v;else delete o.disbMethod[k];
+    const nm=el.dataset.name||k;logA(o,`Payment method for ${nm}: ${({Check:'check',Wire:'wire',Net:'net funded by lender'})[before]||'(none)'} → ${({Check:'check',Wire:'wire',Net:'net funded by lender'})[v]||'(none)'}`,'money');save();render()},
+  issue(el){const o=O(),C=compute(o);const d=C.disb.find(x=>x.key===el.dataset.key);if(!d||Math.abs(C.fileBal)>=0.005)return;const m=(o.disbMethod||{})[d.key]||el.dataset.m;if(m!=='Check'&&m!=='Wire')return;
     const no=m==='Check'?String(o.nextCheck++):'W-'+String(o.nextWire++).padStart(3,'0');
     o.issued[d.key]={no,method:m,date:today(),amount:d.amt,name:d.name};logA(o,`${m} ${no} issued to ${d.name} for ${money(d.amt)}`,'money');UI.check=d.key;save();render()},
   voidD(el){const iss=O().issued[el.dataset.key];if(iss)logA(O(),`${iss.method} ${iss.no} to ${iss.name} voided (${money(iss.amount)})`,'money');delete O().issued[el.dataset.key];if(UI.check===el.dataset.key)UI.check=null;save();render()},
